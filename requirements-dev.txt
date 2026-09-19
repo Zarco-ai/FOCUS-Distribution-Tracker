@@ -1,0 +1,12 @@
+# Tools used to review this project, not needed to run it.
+#
+#   pip install -r requirements-dev.txt
+#   bandit -r . -x ./.venv,./tests
+#   pip-audit
+#
+# Install these into the same virtual environment as the app. pip-audit
+# audits whichever environment it runs in, so a system-wide copy tells you
+# nothing about this project. See SECURITY.md.
+
+bandit==1.9.4
+pip-audit==2.10.1

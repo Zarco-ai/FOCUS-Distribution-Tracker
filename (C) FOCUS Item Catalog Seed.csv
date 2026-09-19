@@ -1,0 +1,120 @@
+item_name,category,report_bucket,unit_price_new,used_multiplier,price_entry,notes
+Baby Shampoo (13-27oz),baby_essentials,hygiene,6.00,0.50,fixed,
+Baby Wash/Shampoo 2-in-1 (13-27oz),baby_essentials,hygiene,,0.50,manual,"No price in source - cell contained #VALUE! where someone typed ""thpaste"" into the price column."
+Baby Lotion or Shampoo (3.4oz),baby_essentials,hygiene,2.00,0.50,fixed,"Overlaps with Baby Shampoo and Baby Lotion - confirm this is the travel size."
+Baby Lotion (13-27oz),baby_essentials,hygiene,7.00,0.50,fixed,
+Diaper Rash Cream (4-5oz),baby_essentials,hygiene,10.00,0.50,fixed,
+Individual Pack of Wipes,baby_essentials,hygiene,3.00,0.50,fixed,"High-volume item - appears constantly in the event log."
+Formula - Similac 7oz,baby_essentials,formula,11.50,0.50,fixed,
+Formula - Enfamil 12.5oz,baby_essentials,formula,26.99,0.50,fixed,
+Formula - Enfamil 20oz,baby_essentials,formula,32.49,0.50,fixed,
+Formula - Similac 30oz,baby_essentials,formula,35.00,0.50,fixed,
+Baby Powder (15oz),baby_essentials,hygiene,5.00,0.50,fixed,
+Baby Oil,baby_essentials,hygiene,6.00,0.50,fixed,
+Pacifiers,baby_essentials,hygiene,7.00,0.50,fixed,
+Similac Nipple Caps/Rings,baby_essentials,hygiene,0.83,0.50,fixed,
+Bottles,baby_essentials,household,7.00,0.50,fixed,
+Bottle Brushes,baby_essentials,household,5.00,0.50,fixed,
+Teething Toys,baby_essentials,household,5.00,0.50,fixed,
+Travel Size Toothpaste,baby_essentials,hygiene,2.00,0.50,fixed,
+Baby/Child Toothbrush,baby_essentials,hygiene,4.00,0.50,fixed,
+Nasal Aspirator,baby_essentials,hygiene,3.00,0.50,fixed,
+Vapor Rub,baby_essentials,hygiene,7.00,0.50,fixed,
+Fridababy Sick Day Prep Kit,baby_essentials,hygiene,35.00,0.50,fixed,
+Dimetapp Cold & Cough (2 bottles),baby_essentials,hygiene,10.00,0.50,fixed,"Priced per 2-bottle unit, not per bottle."
+DayQuil/NyQuil Cold & Cough (3 bottles),baby_essentials,hygiene,20.00,0.50,fixed,"Priced per 3-bottle unit, not per bottle."
+Toothbrush,womens_hygiene,hygiene,2.00,0.50,fixed,
+Toothpaste,womens_hygiene,hygiene,3.00,0.50,fixed,
+Soap/Bodywash,womens_hygiene,hygiene,4.00,0.50,fixed,
+Body Mesh Poof,womens_hygiene,hygiene,1.75,0.50,fixed,
+Deodorant,womens_hygiene,hygiene,6.00,0.50,fixed,
+Pads,womens_hygiene,hygiene,12.00,0.50,fixed,
+Peri Pads,womens_hygiene,hygiene,12.00,0.50,fixed,
+Peri Bottle,womens_hygiene,hygiene,9.00,0.50,fixed,
+Disposable Underwear,womens_hygiene,hygiene,,0.50,manual,"Listed TWICE in source at $10.00 and $23.00. May be two different products."
+Reusable Nursing Pads,womens_hygiene,hygiene,,0.50,manual,"Source cell contains a bare ""5"" with no dollar sign - could be a price or a quantity."
+Disposable Nursing Pads,womens_hygiene,hygiene,5.00,0.50,fixed,
+Nipple Butter,womens_hygiene,hygiene,14.00,0.50,fixed,
+Evenflo Exersaucer Activity Center,womens_hygiene,household,68.00,0.50,fixed,"Filed under Womens Hygiene in the source sheet - almost certainly miscategorized."
+Spectra Baby S2 Electric Breast Pump,womens_hygiene,household,175.00,0.50,fixed,"High value - confirm whether these go out new."
+Manual Breast Pump,womens_hygiene,household,23.00,0.50,fixed,
+Blood Pressure Monitor,womens_hygiene,household,75.00,0.50,fixed,
+Prenatal Vitamins,womens_hygiene,hygiene,24.49,0.50,fixed,
+Laundry Baskets,home_goods,household,1.35,0.50,fixed,
+Diaper Bags,home_goods,household,50.00,0.50,fixed,
+Backpacks,home_goods,household,79.00,0.50,fixed,
+Purse/Bag,home_goods,household,25.00,0.50,fixed,
+Baby Books,home_goods,household,7.00,0.50,fixed,
+Teen/Adult Books,home_goods,household,12.00,0.50,fixed,
+Wall Decorations,home_goods,household,20.00,0.50,fixed,
+Hydro Flask,home_goods,household,25.00,0.50,fixed,
+Bed Sheets,home_goods,household,25.00,0.50,fixed,
+Toys Large,home_goods,household,,0.50,manual,"Source gives a range: $50-75 new, $25-38 used."
+Toys Small,home_goods,household,,0.50,manual,"Source gives a range: $5-49 new, $2-24 used."
+Small Rideable Toy Cars,home_goods,household,50.00,0.50,manual,"New price is fixed but source used range is $15-30, which is not half of new. Confirm the used value at entry."
+Big Rideable Toy Cars,home_goods,household,200.00,0.50,manual,"New price is fixed but source used range is $50-100, which is not half of new. Confirm the used value at entry."
+Pack 'N Play,baby_mom_items,household,65.00,0.50,fixed,
+Stroller,baby_mom_items,household,,0.50,manual,"Source gives $40-$1000. The Center Director's own note: too many stroller types - should eventually be split into umbrella / travel / convertible / combo / travel system."
+Crib,baby_mom_items,household,200.00,0.50,fixed,
+Crib Wind Chime,baby_mom_items,household,22.00,0.50,manual,"Source used value is $15.00, which is not half of $22.00."
+Crib Mattress,baby_mom_items,household,70.00,0.50,fixed,
+Car Seat Booster,baby_mom_items,household,250.00,0.50,fixed,
+Car Seat,baby_mom_items,household,130.00,0.50,fixed,
+Changing Pad,baby_mom_items,household,20.00,0.50,fixed,
+Car Accessories (mirror / car seat toys),baby_mom_items,household,10.00,0.50,fixed,
+Baby Monitor,baby_mom_items,household,50.00,0.50,fixed,
+Wipe Warmer,baby_mom_items,household,20.00,0.50,fixed,
+Big Blankets,baby_mom_items,household,30.00,0.50,fixed,
+Baby Carrier,baby_mom_items,household,75.00,0.50,fixed,
+Nursing Pillow,baby_mom_items,household,45.00,0.50,fixed,
+Pregnancy Body Pillow,baby_mom_items,household,20.00,0.50,fixed,
+Gym Play (Finn & Emma),baby_mom_items,household,100.00,0.50,fixed,
+Gym Play Mat,baby_mom_items,household,25.00,0.50,fixed,
+Play Mat Accessories,baby_mom_items,household,10.00,0.50,fixed,
+Graco Blossom 6-in-1 Convertible Chair,baby_mom_items,household,250.00,0.50,fixed,
+Floor Booster Seat,baby_mom_items,household,30.00,0.50,fixed,
+Booster Seat 2-in-1,baby_mom_items,household,,0.50,manual,"No price in source."
+Baby Swing,baby_mom_items,household,80.00,0.50,fixed,
+Baby Swing & Bouncer,baby_mom_items,household,100.00,0.50,fixed,
+Bassinet,baby_mom_items,household,300.00,0.50,fixed,
+Diaper Genie,baby_mom_items,household,50.00,0.50,fixed,
+Munchkin Steam Microwave Bottle Sterilizer,baby_mom_items,household,70.00,0.50,fixed,
+Baby Bath Booster,baby_mom_items,household,20.00,0.50,fixed,
+Bath Seat Soft Support,baby_mom_items,household,20.00,0.50,fixed,
+Feeding Spoons Pack,baby_mom_items,household,4.00,0.50,fixed,
+Cups,baby_mom_items,household,4.00,0.50,fixed,
+Inflatable Pool,baby_mom_items,household,30.00,0.50,fixed,
+Air Mattress,baby_mom_items,household,60.00,0.50,fixed,"Source row read ""$60.003"" - price and quantity ran together."
+Sleep Bundle (Dorm Essential),baby_mom_items,household,45.00,0.50,fixed,
+Nutribullet Baby,baby_mom_items,household,50.99,0.50,fixed,"Source used value $25.00; half of $50.99 is $25.50. Rounding."
+Rubber Bibs,baby_mom_items,household,20.00,0.50,fixed,
+Cloth Bibs,baby_mom_items,household,5.00,0.50,fixed,
+Bib Cloth 3pk,baby_mom_items,household,12.00,0.50,fixed,"Spelled ""birb cloth 3pk"" in source."
+Kids Chairs,baby_mom_items,household,30.00,0.50,fixed,
+Shirt / Top,clothing_adult,clothing,15.00,0.75,fixed,
+Pants,clothing_adult,clothing,20.00,0.75,fixed,
+Dress,clothing_adult,clothing,22.00,0.75,fixed,
+Socks,clothing_adult,clothing,3.00,0.75,fixed,
+Underwear,clothing_adult,clothing,4.00,0.75,fixed,
+Light Jacket,clothing_adult,clothing,15.00,0.75,fixed,
+Coat,clothing_adult,clothing,60.00,0.75,fixed,
+Shoes,clothing_adult,clothing,20.00,0.75,fixed,
+Belt,clothing_adult,clothing,20.00,0.75,fixed,
+Shirt / Top,clothing_children,clothing,12.00,0.75,fixed,Ages 4-18
+Pants,clothing_children,clothing,18.00,0.75,fixed,Ages 4-18
+Dress,clothing_children,clothing,20.00,0.75,fixed,Ages 4-18
+Socks,clothing_children,clothing,3.00,0.75,fixed,Ages 4-18
+Underwear,clothing_children,clothing,4.00,0.75,fixed,Ages 4-18
+Light Jacket,clothing_children,clothing,15.00,0.75,fixed,Ages 4-18
+Coat,clothing_children,clothing,50.00,0.75,fixed,Ages 4-18
+Shoes,clothing_children,clothing,20.00,0.75,fixed,Ages 4-18
+Belt,clothing_children,clothing,20.00,0.75,fixed,Ages 4-18
+Top / Onesie,clothing_infant,clothing,6.00,0.75,fixed,
+Pants,clothing_infant,clothing,7.00,0.75,fixed,
+Sleeper,clothing_infant,clothing,8.00,0.75,fixed,
+Outfit,clothing_infant,clothing,8.00,0.75,fixed,
+Blanket,clothing_infant,clothing,8.00,0.75,fixed,
+Swaddle,clothing_infant,clothing,5.00,0.75,fixed,
+Light Jacket,clothing_infant,clothing,10.00,0.75,fixed,
+Coat,clothing_infant,clothing,15.00,0.75,fixed,
+Shoes,clothing_infant,clothing,10.00,0.75,fixed,"Last row visible in the source photo - confirm the infant list does not continue past this."

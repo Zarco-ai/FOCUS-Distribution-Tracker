@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Items{% endblock %}
+
+{% block content %}
+
+<h1>Items</h1>
+<p class="subtle">
+  {{ items|length }} shown. Adding a new item here — a diaper size, a food
+  item — needs no help from a developer.
+</p>
+
+<div class="card">
+  <div class="card-actions">
+    <a class="btn btn-primary" href="{{ url_for('admin.new_item') }}">Add an item</a>
+    <a class="btn btn-quiet" href="{{ url_for('admin.needs_price') }}">
+      Needs a price ({{ needs_price_count }})
+    </a>
+    <a class="btn btn-quiet" href="{{ url_for('admin.audit_log') }}">Change history</a>
+  </div>
+</div>
+
+<form method="get" action="{{ url_for('admin.items') }}" class="card">
+  <label class="field" style="margin:0">
+    <span>Search</span>
+    <input type="search" name="q" value="{{ search }}" placeholder="Name or category">
+  </label>
+</form>
+
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Category</th>
+        <th>Bucket</th>
+        <th class="num">New price</th>
+        <th class="num">Used rate</th>
+        <th>Price entry</th>
+        <th>Active</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td>{{ item.name }}</td>
+          <td>{{ item.category|category_label }}</td>
+          <td>{{ item.report_bucket|bucket_label }}</td>
+          <td class="num">{{ item.current_price()|money }}</td>
+          <td class="num">×{{ '%.2f'|format(item.used_multiplier) }}</td>
+          <td>
+            {% if item.price_entry == 'manual' %}
+              <span class="tag tag-confirm">manual</span>
+            {% else %}fixed{% endif %}
+          </td>
+          <td>{{ 'yes' if item.active else 'no' }}</td>
+          <td><a href="{{ url_for('admin.edit_item', item_id=item.id) }}">Edit</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="subtle">Nothing matches that search.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

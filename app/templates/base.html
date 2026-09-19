@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}FOCUS Houston{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="topbar-brand" href="{{ url_for('home.index') }}">FOCUS Houston</a>
+  <nav class="topbar-nav">
+    <a href="{{ url_for('totals.index') }}">Totals</a>
+    <a href="{{ url_for('review.queue') }}">Review</a>
+    <a href="{{ url_for('admin.items') }}">Items</a>
+  </nav>
+</header>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flashes">
+      {% for category, message in messages %}
+        <p class="flash flash-{{ category }}">{{ message }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main class="{% block main_class %}page{% endblock %}">
+  {% block content %}{% endblock %}
+</main>
+
+{% block footer %}{% endblock %}
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,697 @@
+/* FOCUS Houston — distribution logging
+ *
+ * Plain CSS, no framework, mobile first. Every rule that only applies to
+ * bigger screens is inside a media query at the bottom of its section.
+ *
+ * The one hard rule: anything The Center Director taps while standing up is at least
+ * 44x44 pixels. That is the --tap variable, and it is not negotiable.
+ */
+
+:root {
+  --tap: 44px;
+
+  --ink: #1c1c1e;
+  --ink-soft: #55565a;
+  --ink-faint: #8a8b90;
+
+  --paper: #ffffff;
+  --page: #f4f4f6;
+  --line: #dcdce1;
+
+  --brand: #1f5c8b;
+  --brand-dark: #17466a;
+
+  --good: #1f7a4d;
+  --good-bg: #e8f5ee;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3e0;
+  --bad: #a32c22;
+  --bad-bg: #fbeae8;
+
+  --radius: 10px;
+  --gap: 12px;
+}
+
+* { box-sizing: border-box; }
+
+/* The browser hides [hidden] elements with `display: none`, but any of our own
+ * `display: flex` / `display: block` rules below would win over it and show
+ * them again. This puts hidden back on top, everywhere. Without it the keypad
+ * and the custom item form appear on page load. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+
+  /* A column that always fills the window. This is what lets the running-total
+   * bar sit at the bottom of a short page and still be pushed down by a long
+   * one -- see .batch-footer. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Takes up whatever height is left, so the footer is never floating in the
+   middle of a half-empty screen. */
+main { flex: 1 0 auto; }
+
+body.modal-open { overflow: hidden; }
+
+a { color: var(--brand); }
+
+/* --- Top bar -------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap);
+  padding: 10px 14px;
+  background: var(--brand);
+  color: #fff;
+}
+
+.topbar-brand {
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.topbar-nav { display: flex; gap: 4px; }
+
+.topbar-nav a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+
+.topbar-nav a:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* --- Page shell ----------------------------------------------------------- */
+
+.page { padding: var(--gap); max-width: 900px; margin: 0 auto; }
+
+/* Just breathing room under the last item. The running-total bar takes up its
+   own space now (see .batch-footer), so this no longer has to guess at the
+   bar's height. */
+.entry-page { padding-bottom: 20px; }
+
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 20px 0 8px; }
+
+.subtle { color: var(--ink-soft); font-size: 14px; }
+
+/* --- Flash messages and banners ------------------------------------------- */
+
+.flashes { padding: var(--gap) var(--gap) 0; max-width: 900px; margin: 0 auto; }
+
+.flash, .banner {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.flash-success, .banner-ok { background: var(--good-bg); color: var(--good); }
+.flash-error, .banner-error { background: var(--bad-bg); color: var(--bad); }
+.banner-warn { background: var(--warn-bg); color: var(--warn); }
+
+/* --- Buttons -------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-dark); }
+.btn-primary[disabled] { background: var(--ink-faint); cursor: not-allowed; }
+
+.btn-quiet { background: var(--paper); border-color: var(--line); }
+.btn-danger { background: var(--bad-bg); color: var(--bad); border-color: #f0c9c4; }
+.btn-block { width: 100%; }
+.btn-big { min-height: 60px; font-size: 18px; }
+
+/* --- Entry screen: header controls ---------------------------------------- */
+
+.entry-controls {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--page);
+  padding-bottom: 8px;
+  margin: 0 0 4px;
+}
+
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.batch-date { font-weight: 600; font-size: 14px; }
+
+.service-form { flex: 1 1 160px; }
+
+.service-form select,
+.search-bar input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 16px; /* 16px stops iOS zooming in when the field is focused */
+  color: var(--ink);
+}
+
+.search-bar { position: relative; }
+
+.search-clear {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  background: none;
+  font-size: 22px;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+/* --- Entry screen: categories --------------------------------------------- */
+
+.category {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  user-select: none;
+}
+
+.category-header::-webkit-details-marker { display: none; }
+
+/* The little triangle, drawn rather than relying on the browser's default. */
+.category-header::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 6px solid var(--ink-soft);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transition: transform 0.12s ease;
+  flex: none;
+}
+
+.category[open] > .category-header::before { transform: rotate(90deg); }
+
+.category-name { flex: 1; }
+
+.category-badge {
+  background: var(--brand);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.category-size { color: var(--ink-faint); font-size: 13px; font-weight: 400; }
+
+.category-items { border-top: 1px solid var(--line); }
+
+/* --- Entry screen: one item ----------------------------------------------- */
+
+.item-row {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.item-row:last-child { border-bottom: 0; }
+.item-row.has-quantity { background: #f2f7fb; }
+.item-row.saving { opacity: 0.6; }
+.item-row.save-failed { background: var(--bad-bg); }
+
+.item-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.item-name { font-weight: 600; font-size: 15px; }
+
+/* Names repeat across categories, so the category suffix is never optional. */
+.item-cat { color: var(--ink-soft); font-weight: 400; font-size: 14px; }
+
+.item-price { color: var(--ink-soft); font-size: 14px; white-space: nowrap; }
+
+.tag {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tag-required { background: var(--bad-bg); color: var(--bad); }
+.tag-confirm { background: var(--warn-bg); color: var(--warn); }
+.tag-review { background: var(--warn-bg); color: var(--warn); }
+
+.item-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* New / Used */
+
+.condition-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.condition-toggle button {
+  min-height: var(--tap);
+  min-width: 56px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.condition-toggle button.on { background: var(--brand); color: #fff; }
+
+/* Quantity stepper */
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  margin-left: auto;
+}
+
+.step {
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--brand);
+  cursor: pointer;
+}
+
+.step:active { background: #e9eef3; }
+
+/* The quantity is a button: tapping it opens the keypad. */
+.qty {
+  min-width: 56px;
+  height: var(--tap);
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  background: none;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.line-value {
+  min-width: 74px;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+}
+
+/* "also 2 used" -- what is counted on the side the toggle is not showing.
+   Tapping it switches to that side. */
+
+.other-condition {
+  display: block;
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.other-condition:hover { border-color: var(--brand); color: var(--brand); }
+
+/* Manual price box */
+
+.price-box {
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--warn-bg);
+  border-radius: var(--radius);
+}
+
+.price-field { display: flex; align-items: center; gap: 6px; }
+.price-field .dollar { font-weight: 700; font-size: 16px; }
+
+.price-field input {
+  flex: 1;
+  max-width: 160px;
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 1px solid #e0c88f;
+  border-radius: 8px;
+  font-size: 16px;
+  background: var(--paper);
+}
+
+.price-help {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--warn);
+  line-height: 1.4;
+}
+
+/* Says which condition the typed price belongs to, because new and used each
+   carry their own. */
+.price-scope {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--warn);
+}
+
+/* The same item recorded again at a different value -- one stroller at $40 and
+   another at $300. Each is its own line with its own quantity and price. */
+.price-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e0c88f;
+}
+
+.price-group .price-field { flex: 1 1 130px; }
+.price-group .line-value { min-width: 70px; }
+.price-group.needs-price .price-field input { border-color: var(--bad); }
+
+.price-group-remove {
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.price-group-remove:hover { color: var(--bad); }
+
+.add-price-btn {
+  margin-top: 10px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1px dashed #e0c88f;
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--warn);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-price-btn:hover { border-style: solid; }
+
+.item-row.needs-price .price-field input { border-color: var(--bad); }
+
+.no-results { text-align: center; color: var(--ink-soft); padding: 24px 12px; }
+
+.add-custom-btn {
+  width: 100%;
+  min-height: 52px;
+  margin: 12px 0 0;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--brand);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- Sticky batch footer -------------------------------------------------- */
+
+/* Sticky, NOT fixed.
+ *
+ * A fixed bar is lifted out of the page and floats over it, so whatever is at
+ * the bottom of the list ends up underneath it and no amount of padding
+ * reliably rescues it. A sticky bar stays pinned to the bottom of the screen
+ * while there is still list below it, and then comes to rest at the end of the
+ * page -- so the "Add item not on this list" button is always reachable, at
+ * any window size, with any number of categories open. */
+.batch-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap);
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.footer-totals { font-size: 16px; }
+.footer-totals strong { font-variant-numeric: tabular-nums; }
+.footer-sep { color: var(--ink-faint); margin: 0 4px; }
+
+/* --- Modals --------------------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 12px;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--paper);
+  border-radius: 16px;
+  padding: 16px;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.modal-card h2 { margin-top: 0; }
+.modal-help { font-size: 13px; color: var(--ink-soft); }
+
+.modal-actions, .keypad-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.modal-actions .btn, .keypad-actions .btn { flex: 1; }
+
+/* Keypad */
+
+.keypad-item {
+  margin: 0 0 6px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.keypad-display {
+  display: block;
+  text-align: center;
+  font-size: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 6px 0 14px;
+}
+
+.keypad-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.key {
+  min-height: 60px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--page);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.key:active { background: #e4e6ea; }
+.key-wide { font-size: 20px; color: var(--ink-soft); }
+
+/* --- Forms ---------------------------------------------------------------- */
+
+.field { display: block; margin-bottom: 12px; }
+.field > span { display: block; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+
+.field input, .field select, .field textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 16px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.field-help { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-soft); }
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; }
+
+/* --- Cards and lists ------------------------------------------------------ */
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.card-warn { border-color: #e6c98f; background: var(--warn-bg); }
+
+.card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.stat {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.stat-label { font-size: 13px; color: var(--ink-soft); }
+.stat-value { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* --- Tables --------------------------------------------------------------- */
+
+/* Wide tables scroll inside their own box so the page never scrolls sideways. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper);
+  font-size: 14px;
+}
+
+th, td {
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+th { font-size: 13px; color: var(--ink-soft); background: var(--page); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.total-row td { font-weight: 700; border-top: 2px solid var(--ink); }
+tr.flagged td { background: var(--warn-bg); }
+
+/* --- Bigger screens ------------------------------------------------------- */
+
+@media (min-width: 700px) {
+  .page { padding: 20px; }
+  .stat-grid { grid-template-columns: repeat(4, 1fr); }
+  .modal { align-items: center; }
+  .item-top { margin-bottom: 4px; }
+
+  /* Centred to match the page, using margins rather than transforms -- a
+     transform would break the sticky positioning. */
+  .batch-footer {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+  }
+}

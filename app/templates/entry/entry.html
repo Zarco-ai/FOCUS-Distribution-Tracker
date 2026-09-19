@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% block title %}Counting — {{ batch.date.strftime('%b %-d, %Y') }}{% endblock %}
+{% block main_class %}page entry-page{% endblock %}
+
+{% block content %}
+
+<div class="entry-controls">
+
+  <div class="batch-bar">
+    <span class="batch-date">{{ batch.date.strftime('%A, %b %-d') }}</span>
+    <form method="post"
+          action="{{ url_for('entry.set_service_type', batch_id=batch.id) }}"
+          class="service-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select name="service_type_id" onchange="this.form.submit()"
+              aria-label="Service type">
+        <option value="">Service type…</option>
+        {% for service in service_types %}
+          <option value="{{ service.id }}"
+                  {% if batch.service_type_id == service.id %}selected{% endif %}>
+            {{ service.name }}
+          </option>
+        {% endfor %}
+      </select>
+      <noscript><button type="submit">Set</button></noscript>
+    </form>
+  </div>
+
+  {% if commit_mode == 'auto' and blocking_reasons %}
+    <p class="banner banner-warn" id="auto-banner">
+      Not saved yet — {{ blocking_reasons|join(' ') }}
+    </p>
+  {% elif commit_mode == 'auto' %}
+    <p class="banner banner-ok" id="auto-banner">Saving as you go.</p>
+  {% endif %}
+
+  <p class="banner banner-error" id="save-error" hidden></p>
+
+  <div class="search-bar">
+    <input type="search" id="item-search" placeholder="Search items…"
+           autocomplete="off" aria-label="Search items">
+    <button type="button" id="search-clear" class="search-clear" hidden
+            aria-label="Clear search">×</button>
+  </div>
+</div>
+
+<div class="entry-list" id="entry-list"
+     data-line-url="{{ url_for('entry.update_line', batch_id=batch.id) }}"
+     data-csrf-token="{{ csrf_token() }}">
+
+  {% for slug, rows in groups %}
+    <details class="category" data-category="{{ slug }}">
+      <summary class="category-header">
+        <span class="category-name">{{ slug|category_label }}</span>
+        <span class="category-badge" data-role="category-count" hidden>0</span>
+        <span class="category-size">{{ rows|length }}</span>
+      </summary>
+
+      <div class="category-items">
+        {% for row in rows %}
+          {% set item = row.item %}
+          {% set shown = row.by_condition[row.shown] %}
+          {% set other_key = 'used' if row.shown == 'new' else 'new' %}
+          {% set other = row.by_condition[other_key] %}
+          {#
+            Each row holds a quantity, a price and a value for BOTH conditions,
+            because the same item can be counted new and used in one batch. The
+            New/Used toggle switches which one the row is showing; it does not
+            move anything from one to the other.
+          #}
+          <article id="item-{{ item.id }}"
+                   class="item-row{% if shown.quantity > 0 or other.quantity > 0 %} has-quantity{% endif %}"
+                   data-item-id="{{ item.id }}"
+                   data-manual="{{ 1 if row.manual else 0 }}"
+                   data-condition="{{ row.shown }}"
+                   {% for condition, state in row.by_condition.items() %}
+                     data-quantity-{{ condition }}="{{ state.quantity }}"
+                     data-value-{{ condition }}="{{ '%.2f'|format(state.value) if state.value is not none else '' }}"
+                     data-price-{{ condition }}="{{ '%.2f'|format(state.unit_price) if state.unit_price is not none else '' }}"
+                   {% endfor %}
+                   data-search="{{ (item.name ~ ' ' ~ item.category_label ~ ' ' ~ item.category_short)|lower }}">
+
+            <div class="item-top">
+              <span class="item-name">
+                {{ item.name }}<span class="item-cat"> · {{ item.category|category_short }}</span>
+              </span>
+              {% if row.manual and not row.prefilled %}
+                <span class="tag tag-required" data-role="price-tag">price required</span>
+              {% elif row.manual %}
+                <span class="tag tag-confirm" data-role="price-tag">confirm price</span>
+              {% else %}
+                <span class="item-price">{{ row.catalog_price|money }}</span>
+              {% endif %}
+            </div>
+
+            <div class="item-controls">
+              <div class="condition-toggle" role="group"
+                   aria-label="Condition for {{ item.name }}">
+                <button type="button" data-condition="new"
+                        class="{% if row.shown == 'new' %}on{% endif %}">New</button>
+                <button type="button" data-condition="used"
+                        class="{% if row.shown == 'used' %}on{% endif %}">Used</button>
+              </div>
+
+              <div class="stepper">
+                <button type="button" class="step step-down"
+                        aria-label="One fewer {{ item.name }}">−</button>
+                <button type="button" class="qty" data-role="quantity"
+                        aria-label="Quantity for {{ item.name }}, tap to type">
+                  {{ shown.quantity }}
+                </button>
+                <button type="button" class="step step-up"
+                        aria-label="One more {{ item.name }}">+</button>
+              </div>
+
+              <span class="line-value" data-role="line-value">
+                {% if shown.quantity > 0 and shown.value is not none %}{{ shown.value|money }}{% endif %}
+              </span>
+            </div>
+
+            {# What is counted in the OTHER condition, so it is never hidden
+               behind the toggle. Tapping it switches to that side. #}
+            <button type="button" class="other-condition"
+                    data-role="other-condition"
+                    {% if other.quantity == 0 %}hidden{% endif %}>
+              also {{ other.quantity }} {{ other_key }}{% if other.value is not none %} · {{ other.value|money }}{% endif %}
+            </button>
+
+            {% if row.manual %}
+              <div class="price-box" data-role="price-box"
+                   {% if shown.quantity == 0 %}hidden{% endif %}>
+                <label class="price-field">
+                  <span class="dollar">$</span>
+                  <input type="text" inputmode="decimal" data-role="price-input"
+                         value="{{ '%.2f'|format(shown.unit_price) if shown.unit_price is not none else '' }}"
+                         placeholder="0.00"
+                         aria-label="Price for {{ item.name }}">
+                </label>
+                <p class="price-scope" data-role="price-scope">
+                  Price for the <strong data-role="price-condition">{{ row.shown }}</strong> ones.
+                </p>
+
+                {#
+                  The same item recorded again at a different value -- two
+                  strollers worth $40 and $300 cannot share one price. Each
+                  group is its own line, with its own quantity and price.
+                  Rendered for both conditions; the toggle shows one at a time.
+                #}
+                {% for condition, state in row.by_condition.items() %}
+                  {% for extra in state.extras %}
+                    <div class="price-group" data-role="price-group"
+                         data-for-condition="{{ condition }}"
+                         data-line-id="{{ extra.id }}"
+                         data-quantity="{{ extra.quantity }}"
+                         data-value="{{ '%.2f'|format(extra.value) if extra.value is not none else '' }}"
+                         {% if condition != row.shown %}hidden{% endif %}>
+
+                      <div class="stepper">
+                        <button type="button" class="step step-down"
+                                aria-label="One fewer at this price">−</button>
+                        <button type="button" class="qty" data-role="quantity"
+                                aria-label="Quantity at this price, tap to type">
+                          {{ extra.quantity }}
+                        </button>
+                        <button type="button" class="step step-up"
+                                aria-label="One more at this price">+</button>
+                      </div>
+
+                      <label class="price-field">
+                        <span class="dollar">$</span>
+                        <input type="text" inputmode="decimal"
+                               data-role="price-input"
+                               value="{{ '%.2f'|format(extra.unit_price) if extra.unit_price is not none else '' }}"
+                               placeholder="0.00"
+                               aria-label="Another price for {{ item.name }}">
+                      </label>
+
+                      <span class="line-value" data-role="line-value">
+                        {% if extra.quantity > 0 and extra.value is not none %}{{ extra.value|money }}{% endif %}
+                      </span>
+
+                      <form method="post"
+                            action="{{ url_for('entry.remove_price_group', batch_id=batch.id, line_id=extra.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="price-group-remove"
+                                aria-label="Remove this price">×</button>
+                      </form>
+                    </div>
+                  {% endfor %}
+                {% endfor %}
+
+                <form method="post" class="add-price-form"
+                      action="{{ url_for('entry.add_price_group', batch_id=batch.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="item_id" value="{{ item.id }}">
+                  <input type="hidden" name="condition" data-role="add-price-condition"
+                         value="{{ row.shown }}">
+                  <button type="submit" class="add-price-btn">
+                    + Add another at a different price
+                  </button>
+                </form>
+
+                {% if item.note %}
+                  <p class="price-help">{{ item.note }}</p>
+                {% endif %}
+              </div>
+            {% endif %}
+
+          </article>
+        {% endfor %}
+      </div>
+    </details>
+  {% endfor %}
+
+  <p class="no-results" id="no-results" hidden>
+    Nothing matches that. Try a shorter word, or add it as a custom item below.
+  </p>
+
+  <button type="button" class="add-custom-btn" id="open-custom">
+    + Add item not on this list
+  </button>
+</div>
+
+{% endblock %}
+
+{% block footer %}
+<footer class="batch-footer">
+  <div class="footer-totals">
+    <strong id="footer-count">{{ batch.item_count }}</strong>
+    <span>item{{ '' if batch.item_count == 1 else 's' }}</span>
+    <span class="footer-sep">·</span>
+    <strong id="footer-total">{{ batch.total_value|money }}</strong>
+  </div>
+  <a class="btn btn-primary"
+     href="{{ url_for('review.review_screen', batch_id=batch.id) }}">Review</a>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+
+<!-- The numeric keypad. Custom rather than the device keyboard so it behaves
+     identically on a phone and on a laptop. -->
+<div class="modal" id="keypad-modal" hidden>
+  <div class="modal-card keypad" role="dialog" aria-modal="true"
+       aria-labelledby="keypad-item">
+    <p class="keypad-item" id="keypad-item"></p>
+    <output class="keypad-display" id="keypad-display">0</output>
+    <div class="keypad-keys">
+      {% for key in ['1','2','3','4','5','6','7','8','9'] %}
+        <button type="button" class="key" data-key="{{ key }}">{{ key }}</button>
+      {% endfor %}
+      <button type="button" class="key key-wide" data-key="clear">C</button>
+      <button type="button" class="key" data-key="0">0</button>
+      <button type="button" class="key key-wide" data-key="back">⌫</button>
+    </div>
+    <div class="keypad-actions">
+      <button type="button" class="btn btn-quiet" id="keypad-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="keypad-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom item entry. Separate from the keypad: the keypad sets a quantity
+     for an item that already exists, this adds one that does not. -->
+<div class="modal" id="custom-modal" hidden>
+  <form class="modal-card" method="post"
+        action="{{ url_for('entry.add_custom_item', batch_id=batch.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>Add item not on this list</h2>
+
+    <label class="field">
+      <span>Item name</span>
+      <input type="text" name="custom_name" required maxlength="200"
+             placeholder="What is it?">
+    </label>
+
+    <div class="field-row">
+      <label class="field">
+        <span>Quantity</span>
+        <input type="number" name="quantity" value="1" min="0" step="1" required>
+      </label>
+      <label class="field">
+        <span>Price each</span>
+        <input type="text" name="unit_price" inputmode="decimal" value="0.00"
+               required>
+      </label>
+    </div>
+
+    <p class="field-help" style="margin:-6px 0 12px">
+      Leave the price at 0.00 if you do not know what it is worth. The batch can
+      still be approved, and you can put a real value on it later from the
+      review queue.
+    </p>
+
+    <label class="field">
+      <span>Condition</span>
+      <select name="condition">
+        <option value="new">New</option>
+        <option value="used">Used</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Note (optional)</span>
+      <input type="text" name="note" maxlength="300"
+             placeholder="Describe the item, e.g. 'blue, size 4T'">
+      <small class="field-help">
+        Please do not write anyone's name here. This system deliberately stores
+        no personal information about the people it serves.
+      </small>
+    </label>
+
+    <p class="modal-help">
+      This will be marked for review so the details can be filled in later.
+    </p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-quiet" id="custom-cancel">Cancel</button>
+      <button type="submit" class="btn btn-primary">Add to batch</button>
+    </div>
+  </form>
+</div>
+
+<script src="{{ url_for('static', filename='js/keypad.js') }}"></script>
+<script src="{{ url_for('static', filename='js/entry.js') }}"></script>
+{% endblock %}

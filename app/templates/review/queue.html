@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Review queue{% endblock %}
+
+{% block content %}
+
+<h1>Review queue</h1>
+<p class="subtle">
+  Items added during a distribution that were not in the catalog. Match each one
+  to an existing item, or turn it into a new one. The batch keeps the date it
+  was entered on either way.
+</p>
+
+{% if not lines %}
+  <div class="card">
+    <p style="margin:0">Nothing waiting. </p>
+  </div>
+{% endif %}
+
+{% for line in lines %}
+  <div class="card card-warn">
+    <div class="card-row">
+      <div>
+        <strong>{{ line.custom_name }}</strong>
+        <div class="subtle">
+          {{ line.quantity }} × {{ line.condition }}
+          · entered {{ line.batch.date.strftime('%b %-d, %Y') }}
+          · batch {{ line.batch_id }} ({{ line.batch.status }})
+          {% if line.unit_price_at_time is not none %}
+            · typed price {{ line.unit_price_at_time|money }}
+          {% else %}
+            · no price yet
+          {% endif %}
+        </div>
+        {% if line.custom_note %}
+          <div class="subtle">Note: {{ line.custom_note }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('review.resolve', line_id=line.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <label class="field">
+        <span>Match to an item already in the catalog</span>
+        <select name="item_id">
+          <option value="">— or create a new one below —</option>
+          {% for item in items %}
+            <option value="{{ item.id }}">{{ item.display_name }}</option>
+          {% endfor %}
+        </select>
+        <small class="field-help">
+          Every option shows its category, because names repeat — there are
+          three different Pants at three different prices.
+        </small>
+      </label>
+
+      <label class="field">
+        <span>Price each (leave blank to use the item's catalog price)</span>
+        <input type="text" name="unit_price" inputmode="decimal"
+               placeholder="0.00"
+               value="{{ '%.2f'|format(line.unit_price_at_time) if line.unit_price_at_time is not none else '' }}">
+      </label>
+
+      <details class="card" style="margin:10px 0 0">
+        <summary style="cursor:pointer; font-weight:600">
+          Or create a new catalog item
+        </summary>
+
+        <label class="field" style="margin-top:10px">
+          <span>Name</span>
+          <input type="text" name="new_name" value="{{ line.custom_name }}"
+                 maxlength="200">
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Category</span>
+            <input type="text" name="new_category" list="category-options"
+                   placeholder="e.g. baby_essentials">
+          </label>
+          <label class="field">
+            <span>Report bucket</span>
+            <select name="new_report_bucket">
+              {% for bucket in report_buckets %}
+                <option value="{{ bucket }}">{{ bucket|bucket_label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Used rate</span>
+            <input type="text" name="new_used_multiplier" placeholder="0.5"
+                   inputmode="decimal">
+            <small class="field-help">0.5 for goods, 0.75 for clothing.</small>
+          </label>
+          <label class="field">
+            <span>New price</span>
+            <input type="text" name="new_unit_price" inputmode="decimal"
+                   placeholder="0.00">
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Price entry</span>
+          <select name="new_price_entry">
+            <option value="fixed">Fixed — trust this price</option>
+            <option value="manual">Manual — ask every time</option>
+          </select>
+        </label>
+      </details>
+
+      <button type="submit" class="btn btn-primary" style="margin-top:10px">
+        Resolve this line
+      </button>
+    </form>
+  </div>
+{% endfor %}
+
+<datalist id="category-options">
+  {% for slug in categories %}<option value="{{ slug }}">{% endfor %}
+</datalist>
+
+{% endblock %}

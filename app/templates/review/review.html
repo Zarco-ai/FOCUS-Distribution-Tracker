@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Review — {{ batch.date.strftime('%b %-d, %Y') }}{% endblock %}
+
+{% block content %}
+
+<h1>Review</h1>
+<p class="subtle">
+  {{ batch.date.strftime('%A, %B %-d, %Y') }}
+  {% if batch.is_committed %}· approved{% endif %}
+</p>
+
+{% if blocking_reasons %}
+  <div class="banner banner-warn">
+    <strong>Before this can be approved:</strong>
+    <ul style="margin:6px 0 0; padding-left:18px">
+      {% for reason in blocking_reasons %}<li>{{ reason }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+{% if batch.is_committed %}
+  <div class="banner banner-ok">
+    This batch is approved. Changes made here are written to the audit log.
+  </div>
+{% endif %}
+
+<div class="card">
+  <form method="post"
+        action="{{ url_for('entry.set_service_type', batch_id=batch.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="field">
+      <span>Service type</span>
+      <select name="service_type_id" onchange="this.form.submit()">
+        <option value="">Not set</option>
+        {% for service in service_types %}
+          <option value="{{ service.id }}"
+                  {% if batch.service_type_id == service.id %}selected{% endif %}>
+            {{ service.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button type="submit" class="btn btn-quiet">Save service type</button></noscript>
+  </form>
+</div>
+
+<h2>Items</h2>
+
+{% if lines %}
+  <!-- One form around the whole table: edit several lines, save once. -->
+  <form method="post"
+        action="{{ url_for('review.edit_lines', batch_id=batch.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Category</th>
+            <th class="num">Qty</th>
+            <th>Condition</th>
+            <th class="num">Unit price</th>
+            <th class="num">Used rate</th>
+            <th class="num">Value</th>
+            {% if not batch.is_committed %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in lines %}
+            <tr class="{% if line.needs_review %}flagged{% endif %}">
+              <td>
+                {% if line.item %}{{ line.item.name }}{% else %}{{ line.custom_name }}{% endif %}
+                {% if line.needs_review %}
+                  <span class="tag tag-review">needs review</span>
+                {% endif %}
+                {% if line.custom_note %}
+                  <div class="subtle">{{ line.custom_note }}</div>
+                {% endif %}
+              </td>
+              <td>
+                {% if line.item %}
+                  {{ line.item.category|category_label }}
+                {% else %}
+                  <span class="subtle">not in catalog</span>
+                {% endif %}
+              </td>
+              <td class="num">
+                <input type="number" name="quantity-{{ line.id }}"
+                       value="{{ line.quantity }}" min="0" step="1"
+                       style="width:72px"
+                       aria-label="Quantity for {{ line.display_name }}">
+              </td>
+              <td>
+                <select name="condition-{{ line.id }}"
+                        aria-label="Condition for {{ line.display_name }}">
+                  <option value="new" {% if line.condition == 'new' %}selected{% endif %}>New</option>
+                  <option value="used" {% if line.condition == 'used' %}selected{% endif %}>Used</option>
+                </select>
+              </td>
+              <td class="num">
+                <input type="text" name="unit_price-{{ line.id }}" inputmode="decimal"
+                       value="{{ '%.2f'|format(line.unit_price_at_time) if line.unit_price_at_time is not none else '' }}"
+                       placeholder="needed" style="width:92px"
+                       aria-label="Unit price for {{ line.display_name }}">
+              </td>
+              <td class="num">
+                {% if line.condition == 'used' and line.used_multiplier_at_time %}
+                  ×{{ '%.2f'|format(line.used_multiplier_at_time) }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td class="num">{{ line.computed_value|money }}</td>
+              {% if not batch.is_committed %}
+                <td>
+                  <button type="submit" name="remove" value="{{ line.id }}"
+                          class="btn btn-danger">Remove</button>
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+
+          <tr class="total-row">
+            <td colspan="2">Total</td>
+            <td class="num">{{ batch.item_count }}</td>
+            <td colspan="3"></td>
+            <td class="num">{{ batch.total_value|money }}</td>
+            {% if not batch.is_committed %}<td></td>{% endif %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:12px">
+      <button type="submit" class="btn btn-quiet">Save changes to these lines</button>
+    </p>
+  </form>
+{% else %}
+  <p class="subtle">Nothing counted yet.</p>
+{% endif %}
+
+<h2>Attendance</h2>
+<div class="card">
+  <p class="subtle" style="margin-top:0">
+    Counts only. This system stores no names or personal information about the
+    people it serves, deliberately.
+  </p>
+  <form method="post"
+        action="{{ url_for('review.set_attendance', batch_id=batch.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field-row">
+      <label class="field">
+        <span>Individuals</span>
+        <input type="number" name="individuals_served" min="0" step="1"
+               value="{{ batch.attendance.individuals_served if batch.attendance else 0 }}">
+      </label>
+      <label class="field">
+        <span>Children</span>
+        <input type="number" name="children_served" min="0" step="1"
+               value="{{ batch.attendance.children_served if batch.attendance else 0 }}">
+      </label>
+      <label class="field">
+        <span>Class participants</span>
+        <input type="number" name="education_participants" min="0" step="1"
+               value="{{ batch.attendance.education_participants if batch.attendance else 0 }}">
+      </label>
+    </div>
+    <button type="submit" class="btn btn-quiet">Save counts</button>
+  </form>
+</div>
+
+<h2>Note</h2>
+<div class="card">
+  <form method="post" action="{{ url_for('review.set_note', batch_id=batch.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="field">
+      <span>About this session</span>
+      <input type="text" name="note" maxlength="500" value="{{ batch.note or '' }}"
+             placeholder="e.g. 'large formula donation'">
+      <small class="field-help">
+        Please do not write anyone's name here.
+      </small>
+    </label>
+    <button type="submit" class="btn btn-quiet">Save note</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-row">
+    <a class="btn btn-quiet"
+       href="{{ url_for('entry.entry_screen', batch_id=batch.id) }}">Back to counting</a>
+
+    {% if batch.is_committed %}
+      <span class="subtle">
+        Approved {{ batch.committed_at.strftime('%b %-d at %-I:%M %p') }}
+      </span>
+    {% else %}
+      <form method="post" action="{{ url_for('review.approve', batch_id=batch.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary btn-big"
+                {% if blocking_reasons %}disabled{% endif %}>
+          Approve
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

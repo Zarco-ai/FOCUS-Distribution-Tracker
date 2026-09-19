@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Totals{% endblock %}
+
+{% block content %}
+
+<h1>Totals</h1>
+<p class="subtle">
+  Approved batches only. Drafts are not counted until they are approved.
+</p>
+
+<div class="card">
+  <form method="get" action="{{ url_for('totals.index') }}">
+    <div class="field-row">
+      <label class="field">
+        <span>From</span>
+        <input type="date" name="start" value="{{ start_date.isoformat() }}">
+      </label>
+      <label class="field">
+        <span>To</span>
+        <input type="date" name="end" value="{{ end_date.isoformat() }}">
+      </label>
+    </div>
+    <div class="card-actions">
+      <button type="submit" class="btn btn-primary">Show</button>
+      <a class="btn btn-quiet"
+         href="{{ url_for('totals.export', start=start_date.isoformat(), end=end_date.isoformat()) }}">
+        Export CSV
+      </a>
+    </div>
+  </form>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-label">Items distributed</div>
+    <div class="stat-value">{{ summary.total_quantity }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Total GIK value</div>
+    <div class="stat-value">{{ summary.total_value|money }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Batches</div>
+    <div class="stat-value">{{ summary.batches|length }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Individuals served</div>
+    <div class="stat-value">{{ summary.attendance.individuals }}</div>
+  </div>
+</div>
+
+<h2>By report bucket</h2>
+<p class="subtle">
+  Every item counts towards exactly one bucket. Diapers, formula and food are
+  reported in their own columns and are never added into clothing, hygiene or
+  household.
+</p>
+
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Bucket</th>
+        <th class="num">Items</th>
+        <th class="num">Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for bucket in summary.buckets %}
+        <tr>
+          <td>{{ bucket.label }}</td>
+          <td class="num">{{ bucket.quantity }}</td>
+          <td class="num">{{ bucket.value|money }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="subtle">Nothing approved in this range.</td></tr>
+      {% endfor %}
+
+      <tr>
+        <td><em>{{ summary.combined_goods.label }}</em></td>
+        <td class="num"><em>{{ summary.combined_goods.quantity }}</em></td>
+        <td class="num"><em>{{ summary.combined_goods.value|money }}</em></td>
+      </tr>
+
+      <tr class="total-row">
+        <td>All buckets</td>
+        <td class="num">{{ summary.total_quantity }}</td>
+        <td class="num">{{ summary.total_value|money }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Attendance</h2>
+<div class="card">
+  <p style="margin:0">
+    {{ summary.attendance.individuals }} individuals ·
+    {{ summary.attendance.children }} children ·
+    {{ summary.attendance.education }} class participants
+  </p>
+</div>
+
+<h2>Batches in this range</h2>
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Service type</th>
+        <th class="num">Items</th>
+        <th class="num">Value</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for batch in summary.batches %}
+        <tr>
+          <td>{{ batch.date.strftime('%b %-d') }}</td>
+          <td>{{ batch.service_type.name if batch.service_type else '—' }}</td>
+          <td class="num">{{ batch.item_count }}</td>
+          <td class="num">{{ batch.total_value|money }}</td>
+          <td>
+            <a href="{{ url_for('batches.view_batch', batch_id=batch.id) }}">Open</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="subtle">No approved batches in this range.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="subtle" style="margin-top:20px">
+  This is the simple version. The real monthly report has to reproduce
+  The Center Director's exact table, and we do not have all her columns yet.
+</p>
+
+{% endblock %}

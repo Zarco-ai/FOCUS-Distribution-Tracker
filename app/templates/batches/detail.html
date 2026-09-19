@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Batch {{ batch.id }}{% endblock %}
+
+{% block content %}
+
+<h1>{{ batch.date.strftime('%A, %B %-d, %Y') }}</h1>
+<p class="subtle">
+  {{ batch.status }}
+  {% if batch.committed_at %}
+    · approved {{ batch.committed_at.strftime('%b %-d at %-I:%M %p') }}
+  {% endif %}
+  {% if batch.service_type %} · {{ batch.service_type.name }}{% endif %}
+</p>
+
+{% if batch.note %}
+  <div class="card"><p style="margin:0">{{ batch.note }}</p></div>
+{% endif %}
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-label">Items</div>
+    <div class="stat-value">{{ batch.item_count }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Value</div>
+    <div class="stat-value">{{ batch.total_value|money }}</div>
+  </div>
+</div>
+
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Category</th>
+        <th class="num">Qty</th>
+        <th>Condition</th>
+        <th class="num">Unit price</th>
+        <th class="num">Used rate</th>
+        <th class="num">Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in batch.active_lines %}
+        <tr class="{% if line.needs_review %}flagged{% endif %}">
+          <td>
+            {% if line.item %}{{ line.item.name }}{% else %}{{ line.custom_name }}{% endif %}
+            {% if line.needs_review %}<span class="tag tag-review">needs review</span>{% endif %}
+          </td>
+          <td>
+            {% if line.item %}
+              {{ line.item.category|category_label }}
+            {% else %}
+              <span class="subtle">not in catalog</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ line.quantity }}</td>
+          <td>{{ line.condition }}</td>
+          <td class="num">{{ line.unit_price_at_time|money }}</td>
+          <td class="num">
+            {% if line.condition == 'used' and line.used_multiplier_at_time %}
+              ×{{ '%.2f'|format(line.used_multiplier_at_time) }}
+            {% else %}—{% endif %}
+          </td>
+          <td class="num">{{ line.computed_value|money }}</td>
+        </tr>
+      {% endfor %}
+      <tr class="total-row">
+        <td colspan="2">Total</td>
+        <td class="num">{{ batch.item_count }}</td>
+        <td colspan="3"></td>
+        <td class="num">{{ batch.total_value|money }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p style="margin-top:14px">
+  <a class="btn btn-quiet"
+     href="{{ url_for('review.review_screen', batch_id=batch.id) }}">
+    Correct this batch
+  </a>
+</p>
+
+{% if batch.attendance %}
+  <h2>Attendance</h2>
+  <div class="card">
+    <p style="margin:0">
+      {{ batch.attendance.individuals_served }} individuals ·
+      {{ batch.attendance.children_served }} children ·
+      {{ batch.attendance.education_participants }} class participants
+    </p>
+  </div>
+{% endif %}
+
+<h2>Correction history</h2>
+{% if history %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>When</th><th>What</th><th>Field</th><th>From</th><th>To</th></tr>
+      </thead>
+      <tbody>
+        {% for entry in history %}
+          <tr>
+            <td>{{ entry.changed_at.strftime('%b %-d %-I:%M %p') }}</td>
+            <td>{{ entry.description or '—' }}</td>
+            <td>{{ entry.field }}</td>
+            <td>{{ entry.old_value if entry.old_value is not none else '—' }}</td>
+            <td>{{ entry.new_value if entry.new_value is not none else '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="subtle">No changes since this batch was approved.</p>
+{% endif %}
+
+{% endblock %}

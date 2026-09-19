@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit item' if item else 'Add an item' }}{% endblock %}
+
+{% block content %}
+
+<h1>{{ 'Edit item' if item else 'Add an item' }}</h1>
+{% if item %}
+  <p class="subtle">{{ item.display_name }}</p>
+{% endif %}
+
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <label class="field">
+    <span>Name</span>
+    <input type="text" name="name" maxlength="200" required
+           value="{{ item.name if item else form.get('name', '') }}">
+    <small class="field-help">
+      Names may repeat across categories — there are three different Pants.
+      What must be unique is the name and category together.
+    </small>
+  </label>
+
+  <div class="field-row">
+    <label class="field">
+      <span>Category</span>
+      <input type="text" name="category" list="category-options" required
+             value="{{ item.category if item else form.get('category', '') }}">
+      <small class="field-help">Pick one, or type a new one.</small>
+    </label>
+
+    <label class="field">
+      <span>Report bucket</span>
+      <select name="report_bucket" required>
+        {% for bucket in report_buckets %}
+          <option value="{{ bucket }}"
+            {% if (item and item.report_bucket == bucket) or form.get('report_bucket') == bucket %}selected{% endif %}>
+            {{ bucket|bucket_label }}
+          </option>
+        {% endfor %}
+      </select>
+      <small class="field-help">
+        Which column of the monthly report this counts towards.
+      </small>
+    </label>
+  </div>
+
+  <div class="field-row">
+    <label class="field">
+      <span>Used rate</span>
+      <input type="text" name="used_multiplier" inputmode="decimal" required
+             value="{{ '%.2f'|format(item.used_multiplier) if item else form.get('used_multiplier', '') }}"
+             placeholder="0.5">
+      <small class="field-help">
+        What a used one is worth as a fraction of new. FOCUS uses 0.5 for goods
+        and 0.75 for clothing.
+      </small>
+    </label>
+
+    <label class="field">
+      <span>Price entry</span>
+      <select name="price_entry">
+        {% for choice in price_entry_choices %}
+          <option value="{{ choice }}"
+            {% if (item and item.price_entry == choice) or form.get('price_entry') == choice %}selected{% endif %}>
+            {{ 'Fixed — trust the price' if choice == 'fixed' else 'Manual — ask every time' }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+
+  {% if not item %}
+    <label class="field">
+      <span>New price (optional)</span>
+      <input type="text" name="unit_price_new" inputmode="decimal"
+             value="{{ form.get('unit_price_new', '') }}" placeholder="0.00">
+      <small class="field-help">
+        Leave blank if you do not know it yet, and set price entry to Manual.
+      </small>
+    </label>
+  {% endif %}
+
+  <label class="field">
+    <span>Note</span>
+    <input type="text" name="note" maxlength="500"
+           value="{{ item.note if item and item.note else form.get('note', '') }}">
+    <small class="field-help">
+      Shown as help text next to the price box during a distribution.
+    </small>
+  </label>
+
+  {% if item %}
+    <label class="field">
+      <span>
+        <input type="checkbox" name="active" {% if item.active %}checked{% endif %}>
+        Active — show this item on the counting screen
+      </span>
+      <small class="field-help">
+        Deactivating hides an item without deleting it. Past batches keep their
+        numbers either way.
+      </small>
+    </label>
+  {% endif %}
+
+  <button type="submit" class="btn btn-primary">
+    {{ 'Save changes' if item else 'Add item' }}
+  </button>
+  <a class="btn btn-quiet" href="{{ url_for('admin.items') }}">Cancel</a>
+</form>
+
+{% if item %}
+  <h2>Price</h2>
+  <div class="card">
+    <p class="subtle" style="margin-top:0">
+      Current price {{ item.current_price()|money }}. Setting a new one adds a
+      row to <code>item_price</code> — batches approved before today keep the
+      price they were approved at.
+    </p>
+    <form method="post"
+          action="{{ url_for('admin.change_price', item_id=item.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field">
+        <span>New price</span>
+        <input type="text" name="unit_price_new" inputmode="decimal"
+               placeholder="0.00">
+      </label>
+      <button type="submit" class="btn btn-quiet">Set new price</button>
+    </form>
+
+    <h3 style="font-size:15px">Price history</h3>
+    <table>
+      <thead><tr><th>Effective from</th><th class="num">Price</th></tr></thead>
+      <tbody>
+        {% for price in item.prices|sort(attribute='effective_from', reverse=true) %}
+          <tr>
+            <td>{{ price.effective_from.strftime('%b %-d, %Y') }}</td>
+            <td class="num">{{ price.unit_price_new|money }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if history %}
+    <h2>Change history</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>When</th><th>Field</th><th>From</th><th>To</th></tr></thead>
+        <tbody>
+          {% for entry in history %}
+            <tr>
+              <td>{{ entry.changed_at.strftime('%b %-d %-I:%M %p') }}</td>
+              <td>{{ entry.field }}</td>
+              <td>{{ entry.old_value if entry.old_value is not none else '—' }}</td>
+              <td>{{ entry.new_value if entry.new_value is not none else '—' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endif %}
+
+<datalist id="category-options">
+  {% for slug in categories %}<option value="{{ slug }}">{% endfor %}
+</datalist>
+
+{% endblock %}

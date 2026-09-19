@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Needs a price{% endblock %}
+
+{% block content %}
+
+<h1>Needs a price</h1>
+<p class="subtle">
+  {{ items|length }} item{{ '' if items|length == 1 else 's' }} where the source
+  data had no price, a range instead of a price, two different prices for the
+  same thing, or a used value that does not match the stated rate. Each one asks
+  for a price during a distribution.
+</p>
+<p class="subtle">
+  This is the agenda for the next conversation with The Center Director. It should get
+  shorter over time — once a real value is known, set the price and switch the
+  item to <strong>fixed</strong>.
+</p>
+
+{% for item in items %}
+  <div class="card card-warn">
+    <div class="card-row">
+      <div>
+        <strong>{{ item.name }}</strong>
+        <span class="subtle">· {{ item.category|category_label }}</span>
+        <div class="subtle">
+          {% if item.current_price() is not none %}
+            pre-filled at {{ item.current_price()|money }} — needs confirming
+          {% else %}
+            no price on file — must be typed every time
+          {% endif %}
+          · used rate ×{{ '%.2f'|format(item.used_multiplier) }}
+          · bucket {{ item.report_bucket|bucket_label }}
+        </div>
+      </div>
+      <a class="btn btn-quiet"
+         href="{{ url_for('admin.edit_item', item_id=item.id) }}">Fix this</a>
+    </div>
+
+    {% if item.note %}
+      <p style="margin:10px 0 0">{{ item.note }}</p>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="card">
+    <p style="margin:0">
+      Nothing left on this list. Every item in the catalog has a price you can
+      trust.
+    </p>
+  </div>
+{% endfor %}
+
+{% endblock %}

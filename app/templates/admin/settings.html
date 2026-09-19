@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+
+<h1>Settings</h1>
+
+<h2>How approving works</h2>
+<p class="subtle">
+  All three of these work right now. Try each one and keep whichever fits the
+  way a distribution day actually runs.
+</p>
+
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% for mode, label in [
+      ('per_batch', 'Review and approve each batch'),
+      ('per_mother', 'Approve, then start the next one right away'),
+      ('auto', 'Save entries automatically, no approval step')] %}
+    <label class="field" style="border-bottom:1px solid var(--line); padding-bottom:12px">
+      <span>
+        <input type="radio" name="commit_mode" value="{{ mode }}"
+               {% if current_mode == mode %}checked{% endif %}>
+        {{ label }}
+      </span>
+      <small class="field-help">
+        {% if mode == 'per_batch' %}
+          Count everything, look it over on the review screen, then approve.
+          Approving takes you back to the home screen.
+        {% elif mode == 'per_mother' %}
+          Same as above, but approving opens a new empty batch straight away.
+          Good if you want one batch per person.
+        {% else %}
+          Counts are saved as you enter them, with no review step. Items that
+          need a typed price are still held back until you type one, so nothing
+          is ever saved without a value.
+        {% endif %}
+      </small>
+    </label>
+  {% endfor %}
+
+  <button type="submit" class="btn btn-primary" style="margin-top:12px">Save</button>
+</form>
+
+<h2>What this system does not store</h2>
+<div class="card">
+  <p style="margin:0 0 8px">
+    There are no names anywhere in this system, and no records about the people
+    it serves. Attendance is counts only.
+  </p>
+  <p style="margin:0" class="subtle">
+    This is deliberate. Please do not type anyone's name into a note or a custom
+    item description.
+  </p>
+</div>
+
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Change history{% endblock %}
+
+{% block content %}
+
+<h1>Change history</h1>
+<p class="subtle">
+  Every change to an approved batch and to the catalog. Draft batches are not
+  logged — they are still being written.
+</p>
+
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>What</th>
+        <th>Table</th>
+        <th>Field</th>
+        <th>From</th>
+        <th>To</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+        <tr>
+          <td>{{ entry.changed_at.strftime('%b %-d, %Y %-I:%M %p') }}</td>
+          <td>{{ entry.description or '—' }}</td>
+          <td>{{ entry.table_name }} #{{ entry.record_id }}</td>
+          <td>{{ entry.field }}</td>
+          <td>{{ entry.old_value if entry.old_value is not none else '—' }}</td>
+          <td>{{ entry.new_value if entry.new_value is not none else '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="subtle">Nothing has been changed yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

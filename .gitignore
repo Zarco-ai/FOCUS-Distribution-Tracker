@@ -1,0 +1,53 @@
+# --- Secrets and data ------------------------------------------------------
+# instance/ holds the SQLite database AND the generated signing key.
+# Neither belongs in a repository.
+instance/
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
+secret_key
+*.pem
+*.key
+
+# --- Client material -------------------------------------------------------
+# The build prompt is working material, not part of the product.
+(C) FOCUS Demo*.md
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# --- Virtual environments --------------------------------------------------
+.venv/
+venv/
+ENV/
+env/
+
+# --- Testing and tooling ---------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+bandit-report.*
+pip-audit-report.*
+
+# --- Editors ---------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS --------------------------------------------------------------------
+.DS_Store
+Thumbs.db

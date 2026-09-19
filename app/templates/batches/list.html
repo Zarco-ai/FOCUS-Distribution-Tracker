@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}All batches{% endblock %}
+
+{% block content %}
+
+<h1>All batches</h1>
+
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Status</th>
+        <th>Service type</th>
+        <th class="num">Items</th>
+        <th class="num">Value</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for batch in batches %}
+        <tr>
+          <td>{{ batch.date.strftime('%b %-d, %Y') }}</td>
+          <td>
+            {{ batch.status }}{% if batch.is_stale %}
+              <span class="tag tag-required">unfinished</span>
+            {% endif %}
+          </td>
+          <td>{{ batch.service_type.name if batch.service_type else '—' }}</td>
+          <td class="num">{{ batch.item_count }}</td>
+          <td class="num">{{ batch.total_value|money }}</td>
+          <td>
+            {% if batch.is_draft %}
+              <a href="{{ url_for('entry.entry_screen', batch_id=batch.id) }}">Resume</a>
+            {% else %}
+              <a href="{{ url_for('batches.view_batch', batch_id=batch.id) }}">Open</a>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="subtle">No batches yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

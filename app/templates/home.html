@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}FOCUS Houston — Distribution{% endblock %}
+
+{% block content %}
+
+<h1>{{ today.strftime('%A, %B %-d') }}</h1>
+<p class="subtle">
+  {% if commit_mode == 'auto' %}
+    Entries are saving automatically.
+  {% elif commit_mode == 'per_mother' %}
+    Approving a batch starts the next one right away.
+  {% else %}
+    Count, review, then approve.
+  {% endif %}
+</p>
+
+<form method="post" action="{{ url_for('home.resume_today') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="btn btn-primary btn-block btn-big">
+    Start counting
+  </button>
+</form>
+
+{% if stale_drafts %}
+  <h2>Unfinished</h2>
+  <p class="subtle">
+    These were started on an earlier day and never approved. Nothing is deleted
+    automatically — finish them or discard them.
+  </p>
+
+  {% for batch in stale_drafts %}
+    <div class="card card-warn">
+      <div class="card-row">
+        <div>
+          <strong>{{ batch.date.strftime('%b %-d') }}</strong>
+          <span class="subtle">
+            · {{ batch.item_count }} item{{ '' if batch.item_count == 1 else 's' }}
+            · {{ batch.total_value|money }}
+          </span>
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-quiet"
+             href="{{ url_for('entry.entry_screen', batch_id=batch.id) }}">Resume</a>
+          <form method="post"
+                action="{{ url_for('home.discard', batch_id=batch.id) }}"
+                onsubmit="return confirm('Discard this batch? The {{ batch.item_count }} items counted in it will be lost.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="confirm" value="yes">
+            <button type="submit" class="btn btn-danger">Discard</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if fresh_drafts %}
+  <h2>In progress</h2>
+  {% for batch in fresh_drafts %}
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <strong>{{ batch.date.strftime('%b %-d') }}</strong>
+          <span class="subtle">
+            · {{ batch.item_count }} item{{ '' if batch.item_count == 1 else 's' }}
+            · {{ batch.total_value|money }}
+            {% if batch.service_type %} · {{ batch.service_type.name }}{% endif %}
+          </span>
+        </div>
+        <div class="card-actions">
+          <a class="btn btn-quiet"
+             href="{{ url_for('entry.entry_screen', batch_id=batch.id) }}">Open</a>
+          <a class="btn btn-primary"
+             href="{{ url_for('review.review_screen', batch_id=batch.id) }}">Review</a>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if recent_batches %}
+  <h2>Recently approved</h2>
+  {% for batch in recent_batches %}
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <strong>{{ batch.date.strftime('%b %-d') }}</strong>
+          <span class="subtle">
+            · {{ batch.item_count }} item{{ '' if batch.item_count == 1 else 's' }}
+            · {{ batch.total_value|money }}
+            {% if batch.service_type %} · {{ batch.service_type.name }}{% endif %}
+          </span>
+        </div>
+        <a class="btn btn-quiet"
+           href="{{ url_for('batches.view_batch', batch_id=batch.id) }}">Open</a>
+      </div>
+    </div>
+  {% endfor %}
+  <p><a href="{{ url_for('batches.list_batches') }}">All batches</a></p>
+{% endif %}
+
+<h2>Elsewhere</h2>
+<div class="card">
+  <p style="margin:0 0 8px"><a href="{{ url_for('totals.index') }}">Totals and CSV export</a></p>
+  <p style="margin:0 0 8px"><a href="{{ url_for('review.queue') }}">Review queue</a> — custom items waiting to be sorted out</p>
+  <p style="margin:0 0 8px"><a href="{{ url_for('admin.needs_price') }}">Needs a price</a> — items with no trustworthy value yet</p>
+  <p style="margin:0 0 8px"><a href="{{ url_for('admin.items') }}">Manage items</a> — add, rename, change a price or a used rate</p>
+  <p style="margin:0"><a href="{{ url_for('admin.settings') }}">Settings</a> — how approving works</p>
+</div>
+
+{% endblock %}
