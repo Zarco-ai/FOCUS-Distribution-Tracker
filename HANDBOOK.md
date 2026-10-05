@@ -130,12 +130,12 @@ is still being written. The switch happens at approval.
 
 | Screen | What it is for |
 |---|---|
-| **Home** `/` | Start counting. Unfinished batches from earlier days are flagged here. |
+| **Home** `/` | Start counting, or start a new batch while another is still unfinished. Unfinished batches from earlier days are flagged here, and an approved batch still holding a $0.00 line carries a **Needs Review** flag under *Recently approved*. |
 | **Counting** `/batch/<id>` | The screen that matters. Categories collapse, search filters, `+`/`−` and a keypad set quantities, New/Used sets condition, values update live. |
 | **Review** `/batch/<id>/review` | Every line, editable, with the batch total. Approve from here. |
 | **Batch detail** `/batches/<id>` | An approved batch, read-only, with its correction history. |
 | **Totals** `/totals` | Date-range totals by report bucket, plus CSV export. |
-| **Review queue** `/review-queue` | Custom items waiting to be matched to real catalog entries, and to be given a real price. |
+| **Review queue** `/review-queue` | Two lists: catalog items approved before anyone knew their price, and custom items waiting to be matched to real catalog entries. |
 | **Items** `/admin/items` | Add, rename, deactivate, change a price, change a used rate. |
 | **Needs a price** `/admin/needs-price` | Every manual-price item and the note explaining why. |
 | **Settings** `/admin/settings` | Which of the three commit modes to use. |
@@ -228,7 +228,12 @@ How they behave:
 - They appear in the normal list and use `+`/`−` and the keypad like anything else
 - A price box appears on the row the moment the quantity goes above zero
 - The `notes` column from the CSV is shown as help text next to the box
-- **A batch cannot be approved while any manual line is missing a price**
+- **A missing price never blocks the approval.** The review screen says the
+  value is still unknown and Approve still works. The line is committed with its
+  quantity intact, flagged, and listed in the review queue, where the price is
+  typed in later and lands on the batch it was counted in. What went out the
+  door is a fact; what it was worth is a question, and the question must not be
+  able to lose the fact.
 - The typed price is stored on the line only. **The catalog is not modified.**
 - The used multiplier still applies to the typed price
 - **New and used carry separate prices.** A used stroller is not simply a
@@ -237,14 +242,15 @@ How they behave:
 - **The same item can be recorded twice at two different values.** "+ Add
   another at a different price" under the price box adds a second line for that
   item, with its own quantity and its own price — a $40 umbrella stroller and a
-  $300 travel system in the same batch. Each extra line blocks approval until
-  it is priced, exactly like the first, and the `×` removes it. Fixed-price
-  items do not get this: their value comes from the catalog, so two of them are
-  simply a quantity of two.
+  $300 travel system in the same batch. An extra line left unpriced is flagged
+  for review exactly like the first, and the `×` removes it. Fixed-price items
+  do not get this: their value comes from the catalog, so two of them are simply
+  a quantity of two.
 
 This applies only to catalog items marked `manual`. A **custom item** added
-through "Add item not on this list" defaults its price to **0.00** instead, and
-never blocks approval — see below.
+through "Add item not on this list" defaults its price to **0.00** instead — see
+below. Neither kind blocks an approval; they just arrive in the review queue
+needing different things, a price for one and an identity for the other.
 
 The typed price staying on the line is deliberate. `/admin/needs-price` is the
 list of items still needing a real value, and it shrinks only when The Center Director
@@ -276,6 +282,39 @@ the item it is matched to has no catalog price either, it asks for one.
 
 ---
 
+## $0.00 is not a value
+
+A line worth nothing is a line nobody has valued yet. The two are the same
+thing here, so **one rule covers both**: a line with a quantity and a value of
+$0.00 belongs in the review queue, whether its price is missing or is literally
+zero. It lives in one place, `LineItem.needs_price`, and everything else reads
+it.
+
+What follows from that:
+
+- Approving a batch flags every $0.00 line, the same as it flags an unpriced
+  one. The quantity is kept in full either way — what went out the door is a
+  fact, and the missing value must never be allowed to lose it.
+- Typing a real price anywhere — the counting screen, the review screen, or the
+  queue itself — takes the line out of the queue.
+- Taking that value **back down to $0.00 puts it straight back in**, from either
+  screen, as many times as it happens. The flag follows the number; it is not a
+  one-way door. On an approved batch both directions are written to the audit
+  log.
+- The queue says so rather than pretending: saving a price of `0` there reports
+  that the line is staying put, and the review screen says which lines are
+  sitting at $0.00 after a save.
+- The home screen puts a **Needs Review** flag on an approved batch for this
+  reason and this reason only. A custom line that already has a real price is
+  waiting for a *category*, not for a number, and does not raise the flag.
+
+The one thing to know: an item FOCUS genuinely gives out at no value cannot be
+cleared from the queue, because nothing distinguishes it from an unanswered
+one. If that case turns out to be real it needs a deliberate "valued at zero"
+answer rather than a bare price of 0 — see POTENTIAL_ISSUES.md.
+
+---
+
 ## Commit modes
 
 We do not yet know whether the Center Director wants to approve after every mother, after
@@ -288,9 +327,12 @@ a batch of mothers, or not at all. All three work today, switchable at
 | `per_mother` | Same, but approving opens a fresh empty batch straight away. |
 | `auto` | No approval step. Counts save into today's batch as they are entered. |
 
-In **every** mode, a manual-price line with no price and a batch with no service
-type are held back rather than saved. "No committed line is ever missing a
-price" is true in all three, and there is a test that checks all three.
+In **every** mode, a batch with no service type and a batch with nothing in it
+are held back rather than saved. A line with no price is not: it is saved along
+with the rest and flagged for the review queue. The invariant is therefore not
+"no committed line is ever missing a price" but **"a committed line worth
+nothing is never silent about it"** — there is a test that checks all three
+modes, and "worth nothing" covers $0.00 as well as no price at all.
 
 The switch is one setting read in one place (`app/services/batches.py`), so
 changing this after the demo is a small edit.

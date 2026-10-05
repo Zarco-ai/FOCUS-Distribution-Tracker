@@ -59,6 +59,7 @@ def entry_screen(batch_id):
         .order_by(ServiceType.name)
         .all(),
         blocking_reasons=batch_service.blocking_reasons(batch),
+        approval_warnings=batch_service.approval_warnings(batch),
     )
 
 
@@ -178,20 +179,68 @@ def remove_price_group(batch_id, line_id):
     return redirect(url_for("entry.entry_screen", batch_id=batch.id) + anchor)
 
 
+# Where the service type dropdown sends her back to. Both screens carry one,
+# and each has to stay put: picking a type on the review screen halfway through
+# approving must not throw her back to the counting screen. Looked up by key so
+# a hand-typed return_to can never turn into a redirect to somewhere else.
+_RETURN_TO = {
+    "entry": "entry.entry_screen",
+    "review": "review.review_screen",
+}
+
+
 @entry_bp.route("/batch/<int:batch_id>/service-type", methods=["POST"])
 def set_service_type(batch_id):
-    """Pick the kind of session. Optional while counting, required to approve."""
+    """Pick the kind of session. Optional while counting, required to approve.
+
+    Shared by the counting screen and the review screen. Both post a form; the
+    JSON branch is for a caller that wants the updated batch back instead of a
+    page.
+    """
     batch = db.get_or_404(Batch, batch_id)
 
-    raw = request.form.get("service_type_id") or request.json.get("service_type_id")
-    batch.service_type_id = int(raw) if raw else None
-    db.session.commit()
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        raw = payload.get("service_type_id")
+    else:
+        # Not `or request.json` -- an empty string is the "Service type…" /
+        # "Not set" option, a real answer meaning "take it off", and reading
+        # request.json on a form post is what used to answer with 415
+        # Unsupported Media Type instead of a page.
+        raw = request.form.get("service_type_id")
 
+    service_type_id = _as_int(raw)
+    if raw not in (None, "") and service_type_id is None:
+        return _service_type_error(batch, "That is not a service type.")
+
+    if service_type_id is not None:
+        if db.session.get(ServiceType, service_type_id) is None:
+            return _service_type_error(batch, "That service type no longer exists.")
+
+    try:
+        batch_service.set_service_type(batch, service_type_id)
+    except ValueError as error:
+        return _service_type_error(batch, str(error))
+
+    db.session.commit()
     batch_service.maybe_autocommit(batch)
 
     if request.is_json:
         return jsonify({"ok": True, "batch": _batch_json(batch)})
-    return redirect(url_for("entry.entry_screen", batch_id=batch.id))
+    return _back_to_screen(batch)
+
+
+def _service_type_error(batch, message):
+    if request.is_json:
+        return jsonify({"ok": False, "error": message}), 400
+    flash(message, "error")
+    return _back_to_screen(batch)
+
+
+def _back_to_screen(batch):
+    """Back to whichever screen the dropdown was on."""
+    endpoint = _RETURN_TO.get(request.form.get("return_to"), _RETURN_TO["entry"])
+    return redirect(url_for(endpoint, batch_id=batch.id))
 
 
 @entry_bp.route("/batch/<int:batch_id>/custom-item", methods=["POST"])
@@ -300,7 +349,9 @@ def _line_json(line):
         "condition": line.condition,
         "unit_price": _decimal_str(line.unit_price_at_time),
         "value": _decimal_str(line.computed_value),
-        "needs_price": line.unit_price_at_time is None and line.quantity > 0,
+        # The model's rule, not a copy of it -- a price of zero counts as no
+        # price, here as everywhere else.
+        "needs_price": line.needs_price,
     }
 
 
@@ -311,6 +362,8 @@ def _batch_json(batch):
         "total_value": _decimal_str(batch.total_value),
         "ready": not reasons,
         "reasons": reasons,
+        # Loose ends that do NOT stop the batch, such as a line with no price.
+        "warnings": batch_service.approval_warnings(batch),
         "status": batch.status,
     }
 

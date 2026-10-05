@@ -184,7 +184,7 @@ In rough priority order:
 6. Re-run `bandit` and `pip-audit`, and put both in CI.
 7. Get someone who is not the author to review it.
 
-## Reporting a problem
+## Reporting a problem2
 
 This is a two-person project. Email Christopher, or open an issue on the
 repository.

@@ -5,6 +5,11 @@ accident. While a batch is a draft its lines follow the catalog, because a
 draft is still being written. The moment it is committed, the price and the
 used rate on every line are frozen, and the only way to change them afterwards
 is a correction that writes to the audit log.
+
+A missing price is not a reason to refuse an approval. A line counted without
+one is committed as it stands and flagged for review, and the value is typed in
+from the review queue later. What went out the door is a fact; what it was
+worth is a question, and the question must never be allowed to lose the fact.
 """
 
 import datetime
@@ -17,7 +22,14 @@ from app.constants import (
     STATUS_DRAFT,
 )
 from app.extensions import db
-from app.models import Attendance, Batch, Item, LineItem, get_commit_mode
+from app.models import (
+    Attendance,
+    Batch,
+    Item,
+    LineItem,
+    ServiceType,
+    get_commit_mode,
+)
 from app.models.money import to_money
 from app.services import audit, valuation
 
@@ -96,6 +108,44 @@ def get_or_start_todays_batch():
 # --- Editing lines ----------------------------------------------------------
 
 
+def sync_review_flag(line):
+    """Match a catalog line's place in the review queue to what it is worth
+    right now, in either direction. Returns True if the flag actually moved.
+
+    A catalog line is only ever in the queue because its value was missing, so
+    typing a real price finishes it -- whether she types it on the entry screen,
+    on the review screen, or in the queue itself. Taking that value back down to
+    zero puts the line straight back in, because zero is not an answer. That
+    round trip is the whole reason this is two-way and not just a clear.
+
+    Only a committed line is flagged from here. A draft is still being written
+    and commit_batch() flags whatever is still missing at approval; flagging
+    mid-count would fill the queue with rows she is in the middle of typing.
+
+    A custom line is left alone. It needs a catalog item, and with it a category
+    and a used rate, not just a number, so it stays flagged until the queue
+    resolves it.
+    """
+    if line.is_custom:
+        return False
+
+    if line.needs_price:
+        if line.needs_review or not line.batch.is_committed:
+            return False
+        line.needs_review = True
+        # It is waiting again, so it has not been reviewed. Leaving the old
+        # timestamp on would claim otherwise.
+        line.reviewed_at = None
+        return True
+
+    if not line.needs_review:
+        return False
+
+    line.needs_review = False
+    line.reviewed_at = datetime.datetime.now()
+    return True
+
+
 def lines_for(batch, item_id, condition):
     """Every line for one item in one condition, oldest first.
 
@@ -155,8 +205,8 @@ def add_price_group(batch, item, condition=None, quantity=1):
         quantity=valuation.clamp_quantity(quantity),
         condition=condition,
         used_multiplier_at_time=item.used_multiplier,
-        # No price yet. The Center Director types this one, and it blocks approval until
-        # she does -- exactly like the first one.
+        # No price yet. The Center Director types this one, and if she approves
+        # before she does it is flagged for review -- exactly like the first one.
         unit_price_at_time=None,
     )
     db.session.add(line)
@@ -215,6 +265,7 @@ def set_line(batch, item, quantity=None, condition=None, unit_price=None):
         line.unit_price_at_time = item.current_price()
 
     line.recalculate()
+    sync_review_flag(line)
     db.session.flush()
     return line
 
@@ -257,6 +308,7 @@ def update_draft_line(line, quantity=None, condition=None, unit_price=None):
         line.unit_price_at_time = to_money(unit_price)
 
     line.recalculate()
+    sync_review_flag(line)
     db.session.flush()
     return line
 
@@ -266,6 +318,7 @@ def set_line_price(line, unit_price):
     _prepare_for_edit(line.batch)
     line.unit_price_at_time = to_money(unit_price) if unit_price is not None else None
     line.recalculate()
+    sync_review_flag(line)
     db.session.flush()
     return line
 
@@ -329,6 +382,49 @@ def remove_line(line):
     db.session.flush()
 
 
+def set_service_type(batch, service_type_id):
+    """Say what kind of session this batch is. Returns True if it moved.
+
+    Optional while counting, required to approve -- see blocking_reasons().
+    Which is why it cannot be taken back off a batch that has already been
+    approved: that would leave a committed batch in a state approval would have
+    refused, and the monthly report reads this field.
+
+    Changing it on an approved batch is a change to reported data, so it is
+    written to the audit log like any other correction.
+    """
+    if service_type_id == batch.service_type_id:
+        return False
+
+    if service_type_id is None and batch.is_committed:
+        raise ValueError(
+            "An approved batch has to keep a service type. Pick a different one "
+            "instead of clearing it."
+        )
+
+    if batch.is_committed:
+        audit.record_change(
+            table_name="batch",
+            record_id=batch.id,
+            field="service_type_id",
+            # The name, not the id. Nobody reading the log knows what a 3 is.
+            old_value=_service_type_name(batch.service_type_id),
+            new_value=_service_type_name(service_type_id),
+            description=f"Batch {batch.id} service type",
+        )
+
+    batch.service_type_id = service_type_id
+    db.session.flush()
+    return True
+
+
+def _service_type_name(service_type_id):
+    if service_type_id is None:
+        return None
+    service_type = db.session.get(ServiceType, service_type_id)
+    return service_type.name if service_type else str(service_type_id)
+
+
 def set_attendance(batch, individuals=0, children=0, education=0):
     """Head counts for the session. Counts only -- there are no name fields
     here and there must never be any."""
@@ -351,6 +447,9 @@ def blocking_reasons(batch):
     """Everything standing between this batch and being approved.
 
     Returns a list of plain sentences, empty when the batch is ready.
+
+    A missing price is deliberately not on this list. It is a thing to finish
+    later, not a thing that stops the batch -- see approval_warnings().
     """
     reasons = []
 
@@ -360,11 +459,6 @@ def blocking_reasons(batch):
     if not batch.active_lines:
         reasons.append("Add at least one item.")
 
-    unpriced = batch.unpriced_lines
-    if unpriced:
-        names = ", ".join(line.display_name for line in unpriced)
-        reasons.append(f"These items still need a price: {names}.")
-
     return reasons
 
 
@@ -372,11 +466,32 @@ def can_commit(batch):
     return not blocking_reasons(batch)
 
 
+def approval_warnings(batch):
+    """What approving this batch will leave unfinished.
+
+    Plain sentences, same shape as blocking_reasons(), but these do not stop
+    anything. The review screen shows them next to an Approve button that still
+    works, so nothing is a surprise afterwards.
+    """
+    warnings = []
+
+    unpriced = batch.unpriced_lines
+    if unpriced:
+        names = ", ".join(line.display_name for line in unpriced)
+        warnings.append(
+            f"These will be saved without a value and listed in the review "
+            f"queue: {names}."
+        )
+
+    return warnings
+
+
 def commit_batch(batch, when=None):
     """Approve a batch.
 
-    Drops any line whose quantity fell back to zero, freezes the price and the
-    used rate on everything that is left, and marks the batch committed.
+    Drops any line whose quantity fell back to zero, flags anything still
+    missing a price for review, freezes the price and the used rate on
+    everything that is left, and marks the batch committed.
     """
     reasons = blocking_reasons(batch)
     if reasons:
@@ -387,6 +502,13 @@ def commit_batch(batch, when=None):
         if line.quantity == 0:
             db.session.delete(line)
             batch.lines.remove(line)
+
+    # A line with no price is committed anyway, flagged so the review queue
+    # will ask for the number. The quantity is what she actually handed out and
+    # it is not worth losing over a price nobody knows yet.
+    for line in batch.active_lines:
+        if line.needs_price:
+            line.needs_review = True
 
     # Freeze. From here on these numbers are history and are never looked up
     # from the catalog again.
@@ -404,10 +526,9 @@ def commit_batch(batch, when=None):
 def maybe_autocommit(batch):
     """In auto mode, save as she goes.
 
-    If something is still missing -- no service type, or a manual item with no
-    price -- the batch quietly stays a draft and the entry screen says why.
-    That is what keeps 'no committed line is ever missing a price' true in
-    every mode.
+    Only a missing service type or an empty batch holds this back, and the entry
+    screen says which. An unpriced line does not: it is saved flagged, the same
+    as it would be through the Approve button.
     """
     if get_commit_mode() != COMMIT_MODE_AUTO:
         return False
@@ -470,6 +591,20 @@ def correct_line(line, quantity=None, condition=None, unit_price=None):
             new_value=line.computed_value,
             description=label,
         )
+
+        # Supplying the price a line was flagged for finishes the review, and
+        # taking the value back off puts it back in the queue. Either way the
+        # flag moved on committed data, so it is logged like any other change.
+        if sync_review_flag(line):
+            audit.record_change(
+                table_name="line_item",
+                record_id=line.id,
+                field="needs_review",
+                old_value=not line.needs_review,
+                new_value=line.needs_review,
+                description=label,
+            )
+
         db.session.commit()
 
     return line

@@ -36,8 +36,9 @@ STALE_DRAFT_DAYS = 1
 #   auto       No approve step. Quantities land in today's committed batch as
 #              they are entered.
 #
-# In every mode a manual-price line without a price is held back from the
-# commit, so "no committed line is ever missing a price" is always true.
+# In every mode a line with no price is committed along with the rest and
+# flagged for review, so what went out is never lost waiting on a value nobody
+# knows yet. The review queue collects the price afterwards.
 
 COMMIT_MODE_PER_BATCH = "per_batch"
 COMMIT_MODE_PER_MOTHER = "per_mother"
@@ -60,8 +61,9 @@ COMMIT_MODE_HELP = {
         "Good if you want one batch per person."
     ),
     COMMIT_MODE_AUTO: (
-        "Counts are saved as you enter them, with no review step. Items that "
-        "need a typed price are still held until you type one."
+        "Counts are saved as you enter them, with no review step. An item whose "
+        "price you have not typed is saved too, and listed in the review queue "
+        "so you can put a value on it later."
     ),
 }
 

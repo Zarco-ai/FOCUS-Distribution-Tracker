@@ -189,6 +189,11 @@
       if (batch.reasons.length) {
         banner.textContent = "Not saved yet — " + batch.reasons.join(" ");
         banner.className = "banner banner-warn";
+      } else if (batch.warnings.length) {
+        // Saved, but something on it is still unfinished. A missing price does
+        // not hold the batch back; it goes to the review queue instead.
+        banner.textContent = "Saved. " + batch.warnings.join(" ");
+        banner.className = "banner banner-warn";
       } else {
         banner.textContent = "Saving as you go.";
         banner.className = "banner banner-ok";

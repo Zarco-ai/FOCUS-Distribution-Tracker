@@ -18,6 +18,20 @@
   </div>
 {% endif %}
 
+{% if approval_warnings and not batch.is_committed %}
+  {# Not a blocker. Approving works; these are the loose ends it leaves. #}
+  <div class="banner banner-warn">
+    <strong>You can approve this now. Still unfinished:</strong>
+    <ul style="margin:6px 0 0; padding-left:18px">
+      {% for warning in approval_warnings %}<li>{{ warning }}</li>{% endfor %}
+    </ul>
+    <p style="margin:6px 0 0">
+      Type the price below if you know it, or approve and put a value on it later
+      from the <a href="{{ url_for('review.queue') }}">review queue</a>.
+    </p>
+  </div>
+{% endif %}
+
 {% if batch.is_committed %}
   <div class="banner banner-ok">
     This batch is approved. Changes made here are written to the audit log.
@@ -28,10 +42,18 @@
   <form method="post"
         action="{{ url_for('entry.set_service_type', batch_id=batch.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# Stay on this page. The same endpoint serves the counting screen, and its
+       default is to go back there. #}
+    <input type="hidden" name="return_to" value="review">
     <label class="field">
       <span>Service type</span>
       <select name="service_type_id" onchange="this.form.submit()">
-        <option value="">Not set</option>
+        {# An approved batch has to keep a service type -- it could not have been
+           approved without one -- so do not offer an option that is only going
+           to be refused. #}
+        {% if not batch.is_committed or not batch.service_type_id %}
+          <option value="">Not set</option>
+        {% endif %}
         {% for service in service_types %}
           <option value="{{ service.id }}"
                   {% if batch.service_type_id == service.id %}selected{% endif %}>
@@ -67,10 +89,12 @@
         </thead>
         <tbody>
           {% for line in lines %}
-            <tr class="{% if line.needs_review %}flagged{% endif %}">
+            <tr class="{% if line.needs_review or line.needs_price %}flagged{% endif %}">
               <td>
                 {% if line.item %}{{ line.item.name }}{% else %}{{ line.custom_name }}{% endif %}
-                {% if line.needs_review %}
+                {% if line.needs_price %}
+                  <span class="tag tag-required">needs a price</span>
+                {% elif line.needs_review %}
                   <span class="tag tag-review">needs review</span>
                 {% endif %}
                 {% if line.custom_note %}

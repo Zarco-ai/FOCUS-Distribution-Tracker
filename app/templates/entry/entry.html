@@ -12,9 +12,15 @@
           action="{{ url_for('entry.set_service_type', batch_id=batch.id) }}"
           class="service-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="return_to" value="entry">
       <select name="service_type_id" onchange="this.form.submit()"
               aria-label="Service type">
-        <option value="">Service type…</option>
+        {# Same rule as the review screen: once the batch is saved it keeps a
+           service type, so the empty option is only offered while it can still
+           be answered. #}
+        {% if not batch.is_committed or not batch.service_type_id %}
+          <option value="">Service type…</option>
+        {% endif %}
         {% for service in service_types %}
           <option value="{{ service.id }}"
                   {% if batch.service_type_id == service.id %}selected{% endif %}>
@@ -29,6 +35,12 @@
   {% if commit_mode == 'auto' and blocking_reasons %}
     <p class="banner banner-warn" id="auto-banner">
       Not saved yet — {{ blocking_reasons|join(' ') }}
+    </p>
+  {% elif commit_mode == 'auto' and approval_warnings %}
+    {# Saved, with something still unfinished on it. A missing price does not
+       hold the batch back -- it goes to the review queue instead. #}
+    <p class="banner banner-warn" id="auto-banner">
+      Saved. {{ approval_warnings|join(' ') }}
     </p>
   {% elif commit_mode == 'auto' %}
     <p class="banner banner-ok" id="auto-banner">Saving as you go.</p>

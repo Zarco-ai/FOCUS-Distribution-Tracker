@@ -45,7 +45,11 @@
         <tr class="{% if line.needs_review %}flagged{% endif %}">
           <td>
             {% if line.item %}{{ line.item.name }}{% else %}{{ line.custom_name }}{% endif %}
-            {% if line.needs_review %}<span class="tag tag-review">needs review</span>{% endif %}
+            {% if line.needs_price %}
+              <span class="tag tag-required">needs a price</span>
+            {% elif line.needs_review %}
+              <span class="tag tag-review">needs review</span>
+            {% endif %}
           </td>
           <td>
             {% if line.item %}

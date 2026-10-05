@@ -247,3 +247,18 @@ def test_the_export_has_one_row_per_line_plus_a_header(seeded_app):
 
     assert len(rows) == 3
     assert rows[0].startswith("batch_date,batch_id,service_type,item_name,category")
+
+
+def test_bucket_quantities_sum_to_total(seeded_app): #Handwritten, understood, needs mroe practice
+    # commit a batch with items from several buckets, a test to see if the summaries total quantities == the total quantities of all buckets
+    add_committed_batch(
+        [
+            (catalog.find_item("Coat", "clothing_adult"), 1, "new"),
+            (catalog.find_item("Bottles", "baby_essentials"), 2, "new"),
+        ]
+    )
+    
+    start, end = range_today()
+    s = totals.summary(start, end)
+    buckets = totals.bucket_totals(start, end)
+    assert sum(b["quantity"] for b in buckets.values()) == s["total_quantity"]

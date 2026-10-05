@@ -14,12 +14,36 @@
   {% endif %}
 </p>
 
-<form method="post" action="{{ url_for('home.resume_today') }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button type="submit" class="btn btn-primary btn-block btn-big">
-    Start counting
-  </button>
-</form>
+{% if working_batch %}
+  {# Something is already open for today. Offer to pick it up, but always offer
+     a clean start too -- an unfinished batch must not be able to capture the
+     next session's counting. #}
+  <form method="post" action="{{ url_for('home.resume_today') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary btn-block btn-big btn-stack">
+      Keep counting
+      <span class="btn-sub">
+        {{ working_batch.item_count }} item{{ '' if working_batch.item_count == 1 else 's' }}
+        so far{% if working_batch.unpriced_lines %} · one still needs a price{% endif %}
+      </span>
+    </button>
+  </form>
+
+  <form method="post" action="{{ url_for('home.new_batch') }}"
+        style="margin-top:8px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-quiet btn-block">
+      Start a new batch instead
+    </button>
+  </form>
+{% else %}
+  <form method="post" action="{{ url_for('home.resume_today') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary btn-block btn-big">
+      Start counting
+    </button>
+  </form>
+{% endif %}
 
 {% if stale_drafts %}
   <h2>Unfinished</h2>
@@ -90,6 +114,12 @@
             · {{ batch.total_value|money }}
             {% if batch.service_type %} · {{ batch.service_type.name }}{% endif %}
           </span>
+          {# Approved, but something in it went out at $0.00. It stays on this
+             list -- it is approved and it counts -- with a flag saying the value
+             is still owed. #}
+          {% if batch.needs_review %}
+            <span class="tag tag-review tag-flag">Needs Review</span>
+          {% endif %}
         </div>
         <a class="btn btn-quiet"
            href="{{ url_for('batches.view_batch', batch_id=batch.id) }}">Open</a>
@@ -102,7 +132,15 @@
 <h2>Elsewhere</h2>
 <div class="card">
   <p style="margin:0 0 8px"><a href="{{ url_for('totals.index') }}">Totals and CSV export</a></p>
-  <p style="margin:0 0 8px"><a href="{{ url_for('review.queue') }}">Review queue</a> — custom items waiting to be sorted out</p>
+  <p style="margin:0 0 8px">
+    <a href="{{ url_for('review.queue') }}">Review queue</a>
+    {% if flagged_count %}
+      <span class="tag tag-review">{{ flagged_count }}</span>
+      — lines waiting for a price or a catalog match
+    {% else %}
+      — custom items and unpriced lines waiting to be sorted out
+    {% endif %}
+  </p>
   <p style="margin:0 0 8px"><a href="{{ url_for('admin.needs_price') }}">Needs a price</a> — items with no trustworthy value yet</p>
   <p style="margin:0 0 8px"><a href="{{ url_for('admin.items') }}">Manage items</a> — add, rename, change a price or a used rate</p>
   <p style="margin:0"><a href="{{ url_for('admin.settings') }}">Settings</a> — how approving works</p>

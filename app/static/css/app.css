@@ -126,7 +126,7 @@ h2 { font-size: 18px; margin: 20px 0 8px; }
 
 .flash-success, .banner-ok { background: var(--good-bg); color: var(--good); }
 .flash-error, .banner-error { background: var(--bad-bg); color: var(--bad); }
-.banner-warn { background: var(--warn-bg); color: var(--warn); }
+.flash-warn, .banner-warn { background: var(--warn-bg); color: var(--warn); }
 
 /* --- Buttons -------------------------------------------------------------- */
 
@@ -154,6 +154,11 @@ h2 { font-size: 18px; margin: 20px 0 8px; }
 .btn-danger { background: var(--bad-bg); color: var(--bad); border-color: #f0c9c4; }
 .btn-block { width: 100%; }
 .btn-big { min-height: 60px; font-size: 18px; }
+
+/* A button that carries a second line under its label, e.g. "Keep counting"
+   over "12 items so far". Stacks because .btn is a row by default. */
+.btn-stack { flex-direction: column; gap: 2px; line-height: 1.2; }
+.btn-sub { font-size: 13px; font-weight: 500; opacity: 0.85; }
 
 /* --- Entry screen: header controls ---------------------------------------- */
 
@@ -296,6 +301,25 @@ h2 { font-size: 18px; margin: 20px 0 8px; }
 .tag-required { background: var(--bad-bg); color: var(--bad); }
 .tag-confirm { background: var(--warn-bg); color: var(--warn); }
 .tag-review { background: var(--warn-bg); color: var(--warn); }
+
+/* A dot, then the label -- the flag on an approved batch that still owes a
+   value. The dot is drawn rather than typed so it picks up the tag's own colour
+   and cannot be selected or copied as text. */
+.tag-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.tag-flag::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
 
 .item-controls {
   display: flex;

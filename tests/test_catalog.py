@@ -233,3 +233,5 @@ def test_manual_items_keep_the_note_explaining_why(seeded_app):
 def test_every_item_is_displayed_with_its_category(seeded_app):
     for item in catalog.active_items():
         assert "·" in item.display_name
+
+

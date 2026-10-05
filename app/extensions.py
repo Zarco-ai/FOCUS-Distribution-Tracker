@@ -10,3 +10,5 @@ db = SQLAlchemy()
 # app/templates includes one; the counting screen sends it as an X-CSRFToken
 # header from entry.js.
 csrf = CSRFProtect()
+
+

@@ -31,6 +31,7 @@ def review_screen(batch_id):
         batch=batch,
         lines=batch.active_lines,
         blocking_reasons=batch_service.blocking_reasons(batch),
+        approval_warnings=batch_service.approval_warnings(batch),
         service_types=ServiceType.query.filter_by(active=True)
         .order_by(ServiceType.name)
         .all(),
@@ -77,6 +78,17 @@ def edit_lines(batch_id):
 
     db.session.commit()
     flash("Saved.", "success")
+
+    # A line she has just taken back down to $0.00 is in the review queue now.
+    # Saying so here is the only warning she gets before leaving the page. A
+    # draft does not need it -- the banner at the top of this page already lists
+    # what approving will leave unfinished.
+    if batch.is_committed and batch.unpriced_lines:
+        names = ", ".join(line.display_name for line in batch.unpriced_lines)
+        flash(
+            f"Recorded at $0.00 and waiting in the review queue: {names}.", "warn"
+        )
+
     return redirect(url_for("review.review_screen", batch_id=batch.id))
 
 
@@ -149,10 +161,14 @@ def approve(batch_id):
 
 @review_bp.route("/review-queue")
 def queue():
-    """Custom items waiting to be turned into real catalog entries."""
+    """Lines waiting to be finished: custom items that need an identity, and
+    catalog items that were approved before anyone knew their price."""
+    lines = review_service.flagged_lines()
+
     return render_template(
         "review/queue.html",
-        lines=review_service.flagged_lines(),
+        custom_lines=[line for line in lines if line.is_custom],
+        priceless_lines=[line for line in lines if not line.is_custom],
         items=catalog.active_items(),
         categories=catalog.categories_in_use(),
         report_buckets=REPORT_BUCKETS,
@@ -162,6 +178,19 @@ def queue():
 @review_bp.route("/review-queue/<int:line_id>/resolve", methods=["POST"])
 def resolve(line_id):
     line = db.get_or_404(LineItem, line_id)
+    unit_price = parse_price(request.form.get("unit_price"))
+
+    if not line.is_custom:
+        # A catalog line is only ever in the queue because its price was
+        # missing, so the number is all this form collects.
+        try:
+            review_service.price_line(line, unit_price=unit_price)
+        except ValueError as error:
+            flash(str(error), "error")
+            return redirect(url_for("review.queue"))
+
+        flash(_priced_message(line), "warn" if line.needs_review else "success")
+        return redirect(url_for("review.queue"))
 
     item = None
     item_id = request.form.get("item_id")
@@ -184,12 +213,32 @@ def resolve(line_id):
         review_service.resolve_line(
             line,
             item=item,
-            unit_price=parse_price(request.form.get("unit_price")),
+            unit_price=unit_price,
             new_item_fields=new_item_fields,
         )
     except (ValueError, catalog.CatalogError) as error:
         flash(str(error), "error")
         return redirect(url_for("review.queue"))
 
-    flash(f"Resolved as {line.display_name}.", "success")
+    if line.needs_review:
+        # Matched to an item, but still recorded at nothing, so it has not left
+        # the queue. Say that rather than letting the card reappear unexplained.
+        flash(
+            f"Matched to {line.display_name}, but it is still recorded at $0.00, "
+            f"so it stays here until it has a value.",
+            "warn",
+        )
+    else:
+        flash(f"Resolved as {line.display_name}.", "success")
     return redirect(url_for("review.queue"))
+
+
+def _priced_message(line):
+    """What the queue says back after a price is typed. A zero is not a price,
+    and the line is still sitting there, so it does not get told it is done."""
+    if line.needs_review:
+        return (
+            f"{line.display_name} is still recorded at $0.00, so it stays in the "
+            f"review queue until it has a value."
+        )
+    return f"Priced {line.display_name} at ${line.unit_price_at_time:,.2f} each."

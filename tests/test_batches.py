@@ -13,6 +13,7 @@ from app.constants import (
 from app.extensions import db
 from app.models import ServiceType, set_commit_mode
 from app.services import audit, batches, catalog
+from app.views.admin import change_price
 
 
 def a_batch(with_service_type=True):
@@ -208,16 +209,45 @@ def test_a_manual_item_starts_with_no_price(seeded_app):
     assert line.computed_value is None
 
 
-def test_a_batch_with_an_unpriced_manual_line_cannot_be_approved(seeded_app):
+def test_an_unpriced_manual_line_is_flagged_rather_than_blocking(seeded_app):
+    """The quantity is a fact and the price is a question. Approving records the
+    fact and sends the question to the review queue."""
+    batch = a_batch()
+    line = batches.set_line(batch, item("Stroller", "baby_mom_items"), quantity=1)
+
+    assert batches.can_commit(batch)
+    assert batches.blocking_reasons(batch) == []
+
+    batches.commit_batch(batch)
+
+    assert batch.is_committed
+    assert line.needs_review
+    assert line.unit_price_at_time is None
+    assert line.computed_value is None
+    # The stroller still went out the door, so it is still one item.
+    assert batch.item_count == 1
+
+
+def test_an_unpriced_line_is_named_as_a_warning_not_a_blocker(seeded_app):
     batch = a_batch()
     batches.set_line(batch, item("Stroller", "baby_mom_items"), quantity=1)
 
-    assert not batches.can_commit(batch)
-    with pytest.raises(batches.BatchNotReady) as raised:
-        batches.commit_batch(batch)
+    warnings = batches.approval_warnings(batch)
 
-    assert any("need a price" in reason for reason in raised.value.reasons)
-    assert batch.is_draft
+    assert any("Stroller" in warning for warning in warnings)
+    assert batches.blocking_reasons(batch) == []
+
+
+def test_a_price_typed_before_approval_leaves_nothing_flagged(seeded_app):
+    batch = a_batch()
+    stroller = item("Stroller", "baby_mom_items")
+
+    batches.set_line(batch, stroller, quantity=1)
+    batches.set_line(batch, stroller, unit_price="250.00")
+    batches.commit_batch(batch)
+
+    assert batches.approval_warnings(batch) == []
+    assert batch.flagged_lines == []
 
 
 def test_typing_a_price_unblocks_the_batch(seeded_app):
@@ -311,16 +341,20 @@ def test_the_main_row_still_edits_the_first_line(seeded_app):
     assert again.unit_price_at_time == Decimal("300.00")
 
 
-def test_an_unpriced_extra_blocks_approval_like_any_other(seeded_app):
+def test_an_unpriced_extra_is_flagged_like_any_other(seeded_app):
     batch = a_batch()
     stroller = item("Stroller", "baby_mom_items")
 
-    batches.set_line(batch, stroller, quantity=1, unit_price="300.00")
-    batches.add_price_group(batch, stroller)
+    priced = batches.set_line(batch, stroller, quantity=1, unit_price="300.00")
+    extra = batches.add_price_group(batch, stroller)
 
-    assert not batches.can_commit(batch)
-    with pytest.raises(batches.BatchNotReady):
-        batches.commit_batch(batch)
+    assert batches.can_commit(batch)
+    batches.commit_batch(batch)
+
+    assert batch.flagged_lines == [extra]
+    assert not priced.needs_review
+    # The priced one still contributes its own value in full.
+    assert batch.total_value == Decimal("300.00")
 
 
 def test_a_fixed_price_item_is_refused_a_second_price(seeded_app):
@@ -589,20 +623,26 @@ def test_auto_mode_can_keep_counting_into_the_same_batch(seeded_app):
     assert batch.total_value == Decimal("66.00")  # 60 + 2*3
 
 
-def test_auto_mode_holds_back_an_unpriced_manual_line(seeded_app):
-    """'No committed line is ever missing a price' has to be true in every
-    mode, including this one."""
+def test_auto_mode_saves_an_unpriced_manual_line_and_flags_it(seeded_app):
+    """Auto mode has no approve step to hold anything at, so the line is saved
+    flagged and the price is collected from the review queue."""
     set_commit_mode(COMMIT_MODE_AUTO)
     batch = a_batch()
-    batches.set_line(batch, item("Stroller", "baby_mom_items"), quantity=1)
-
-    assert not batches.maybe_autocommit(batch)
-    assert batch.is_draft
-
-    batches.set_line(batch, item("Stroller", "baby_mom_items"), unit_price="250")
+    stroller = item("Stroller", "baby_mom_items")
+    line = batches.set_line(batch, stroller, quantity=1)
 
     assert batches.maybe_autocommit(batch)
     assert batch.is_committed
+    assert line.needs_review
+
+    # Typing the price on the entry screen afterwards finishes it in place,
+    # without a trip through the queue.
+    batches.set_line(batch, stroller, unit_price="250")
+    batches.maybe_autocommit(batch)
+
+    assert not line.needs_review
+    assert line.reviewed_at is not None
+    assert batch.total_value == Decimal("250.00")
 
 
 def test_auto_mode_waits_for_a_service_type(seeded_app):
@@ -614,14 +654,85 @@ def test_auto_mode_waits_for_a_service_type(seeded_app):
     assert batch.is_draft
 
 
-def test_no_committed_line_ever_lacks_a_price(seeded_app):
-    """The invariant, checked across all three modes."""
+def test_a_committed_line_without_a_price_is_always_flagged(seeded_app):
+    """The invariant, checked across all three modes.
+
+    It used to be 'no committed line ever lacks a price', enforced by refusing
+    the approval. Refusing lost the count, so the invariant is now: a committed
+    line without a price is never silent about it.
+    """
     for mode in (COMMIT_MODE_PER_BATCH, COMMIT_MODE_PER_MOTHER, COMMIT_MODE_AUTO):
         set_commit_mode(mode)
         batch = a_batch()
         batches.set_line(batch, item("Stroller", "baby_mom_items"), quantity=1)
-        batches.maybe_autocommit(batch)
 
-        if batch.is_committed:
-            for line in batch.active_lines:
-                assert line.unit_price_at_time is not None
+        if mode == COMMIT_MODE_AUTO:
+            batches.maybe_autocommit(batch)
+        else:
+            batches.commit_batch(batch)
+
+        assert batch.is_committed
+        for line in batch.active_lines:
+            if line.unit_price_at_time is None:
+                assert line.needs_review
+
+
+# --- My own testing ----------------------------------------------
+
+# Test adult coat, $60 used -> $45 (the .75 rate)
+    # Test blood pressure monitor, $75 used -> $37.50 (the .50 rate)
+    # No used-rates should be hardcoded
+
+def test_for_hardcoded_used_rates(seeded_app):
+    """Flipping the toggle to look at Used and flipping back must not leave an
+    empty used line in the approved batch."""
+
+    batch = a_batch()
+
+    coat = item("Coat", "clothing_adult")
+    bpm = item("Blood Pressure Monitor", "womens_hygiene")
+
+    assert coat.used_multiplier == Decimal("0.75")
+    assert bpm.used_multiplier == Decimal("0.50")
+
+    batches.set_line(batch, coat, quantity=1, condition="used")
+    batches.set_line(batch, bpm, quantity=1, condition="used")
+
+    batches.commit_batch(batch)
+
+    assert len(batch.lines) == 2
+    assert batch.lines[0].condition == "used"
+    assert batch.lines[1].condition == "used"
+
+    assert batch.lines[0].unit_price_at_time == Decimal("60.00")
+    assert batch.lines[1].unit_price_at_time == Decimal("75.00")
+
+    assert batch.lines[0].used_multiplier_at_time == Decimal("0.75")
+    assert batch.lines[1].used_multiplier_at_time == Decimal("0.50")
+
+    assert batch.lines[0].computed_value == Decimal("45.00")
+    assert batch.lines[1].computed_value == Decimal("37.5")
+
+    assert batch.total_value == Decimal("82.50")
+
+
+def test_price_change_in_catalog_and_committed_batch(seeded_app):
+    """Test to make sure a batch's total doesn't change 
+    after you edit the item's price in the catalog."""
+
+    # Committ a batch
+    batch = a_batch()
+    coat = item("Coat", "clothing_adult")
+    batches.set_line(batch, coat, quantity=1, condition="new")
+    batches.commit_batch(batch)
+    assert batch.lines[0].unit_price_at_time == Decimal("60.00")
+    assert batch.lines[0].computed_value == Decimal("60.00")
+
+    # Change the item's price in the catalog
+    catalog.change_price(coat, 70.00)
+    # Assert the price changed in the catalog
+    assert coat.current_price() == Decimal("70.00")
+
+    # Assert the batch's price did not change
+    assert batch.lines[0].unit_price_at_time == Decimal("60.00")
+    assert batch.lines[0].computed_value == Decimal("60.00")

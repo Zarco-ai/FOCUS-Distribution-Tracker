@@ -103,8 +103,25 @@ class Batch(db.Model):
 
     @property
     def unpriced_lines(self):
-        """Lines with a quantity but no price yet. These block approval."""
-        return [line for line in self.active_lines if line.unit_price_at_time is None]
+        """Lines with a quantity but no value on them yet -- see
+        LineItem.needs_price, which counts a price of zero as no value.
+
+        These do NOT block approval. Approving flags them for review and saves
+        the batch as it stands -- see commit_batch(). Holding up a whole day's
+        counting over one unknown price loses more than it protects.
+        """
+        return [line for line in self.active_lines if line.needs_price]
+
+    @property
+    def needs_review(self):
+        """Something went out of here at no recorded value.
+
+        This is what puts the "Needs Review" flag on an approved batch on the
+        home screen, and it is deliberately narrower than flagged_lines: a
+        custom line that already has a real price is waiting for a category, not
+        for a number, and the home screen does not shout about that.
+        """
+        return bool(self.unpriced_lines)
 
     @property
     def flagged_lines(self):
@@ -177,6 +194,27 @@ class LineItem(db.Model):
     @property
     def is_priced(self):
         return self.unit_price_at_time is not None
+
+    @property
+    def needs_price(self):
+        """Counting something, but nobody has said what it is worth yet.
+
+        Two things land here and they mean the same thing: no price was typed at
+        all, or the price is zero. Zero is not a value in this app, it is the
+        absence of one -- a custom item starts at zero precisely so she does not
+        have to invent a number mid-distribution -- so a zero line belongs in the
+        review queue however it got there. Never priced, priced at zero from the
+        queue, or corrected back down to zero on the review screen: same line,
+        same missing number, same queue.
+
+        A manual-price item starts out like this. It is not an error and it does
+        not stop the batch being approved -- the quantity is real and worth
+        keeping. The line is flagged for review at approval and the value is
+        filled in from the review queue afterwards.
+        """
+        if self.quantity <= 0:
+            return False
+        return self.unit_price_at_time is None or self.unit_price_at_time == 0
 
     # --- Valuation ---------------------------------------------------------
 
